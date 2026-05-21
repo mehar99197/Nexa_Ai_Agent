@@ -14,8 +14,6 @@ Please read this guide to ensure your Pull Requests (PRs) merge smoothly and kee
 ## 👑 Maintainers
 
 - **NexaCode Solutions** - Creator & Lead Architect
-  - GitHub: [201Harsh](https://github.com/201Harsh)
-  - Instagram: [201harshs](https://www.instagram.com/201harshs/)
 
 ---
 

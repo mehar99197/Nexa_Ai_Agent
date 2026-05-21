@@ -387,15 +387,9 @@ Use responsibly. The maintainers are not liable for misuse.
 **NexaCode Solutions**  
 AI Systems Engineering and Project Leadership
 
-Instagram: [@201Harshs](https://www.instagram.com/201harshs/)
-GitHub: [@201Harsh](https://github.com/201Harsh)
-
 ---
 
 # 📜 License
-
-MIT License — see LICENSE file.
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
@@ -404,8 +398,5 @@ MIT License — see LICENSE file.
 **Nexa is not a chatbot.** It is a **neural extension of your operating system**.
 
 > _System Online._
-
-# Made with ❤️ by [NexaCode Solutions](https://instagram.com/201Harshs)
-
 
 ---
