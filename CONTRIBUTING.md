@@ -8,7 +8,7 @@ Please read this guide to ensure your Pull Requests (PRs) merge smoothly and kee
 
 ## 🔗 Quick Links
 
-- **GitHub:** https://github.com/201Harsh/Nexa
+- **GitHub:** https://github.com/mehar99197/Nexa_Ai_Agent
 - **Instagram:** [@nexacode](https://www.instagram.com/nexacode/)
 
 ## 👑 Maintainers
@@ -22,7 +22,7 @@ Please read this guide to ensure your Pull Requests (PRs) merge smoothly and kee
 ## 🛠 How to Contribute
 
 1. **Bugs & small fixes** → Open a PR!
-2. **New features / architecture** → Start a [GitHub Discussion](https://github.com/201Harsh/Nexa/discussions) or open an Issue first. Please don't spend 20 hours building a massive feature without checking if it aligns with the project roadmap.
+2. **New features / architecture** → Start a [GitHub Discussion](https://github.com/mehar99197/Nexa_Ai_Agent/discussions) or open an Issue first. Please don't spend 20 hours building a massive feature without checking if it aligns with the project roadmap.
 3. **Refactor-only PRs** → **Do not open a PR.** I am not accepting purely cosmetic refactors (e.g., changing linting rules, reorganizing folders) unless requested as part of a specific bug fix.
 4. **Questions** → Open a Discussion on GitHub.
 

@@ -5,17 +5,17 @@
 ## The Autonomous Neural OS Agent
 
 <div style="display: flex; justify-center; gap: 10px; margin-bottom: 20px;">
-  <a href="https://github.com/201Harsh/Nexa/stargazers">
-    <img src="https://img.shields.io/github/stars/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=github&logoColor=white" alt="GitHub stars">
+  <a href="https://github.com/mehar99197/Nexa_Ai_Agent/stargazers">
+    <img src="https://img.shields.io/github/stars/mehar99197/Nexa_Ai_Agent?style=for-the-badge&color=10b981&logo=github&logoColor=white" alt="GitHub stars">
   </a>
-  <a href="https://github.com/201Harsh/Nexa/network/members">
-    <img src="https://img.shields.io/github/forks/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=git&logoColor=white" alt="GitHub forks">
+  <a href="https://github.com/mehar99197/Nexa_Ai_Agent/network/members">
+    <img src="https://img.shields.io/github/forks/mehar99197/Nexa_Ai_Agent?style=for-the-badge&color=10b981&logo=git&logoColor=white" alt="GitHub forks">
   </a>
-  <a href="https://github.com/201Harsh/Nexa/graphs/contributors">
-    <img src="https://img.shields.io/github/contributors/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=users&logoColor=white" alt="Contributors">
+  <a href="https://github.com/mehar99197/Nexa_Ai_Agent/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/mehar99197/Nexa_Ai_Agent?style=for-the-badge&color=10b981&logo=users&logoColor=white" alt="Contributors">
   </a>
-  <a href="https://github.com/201Harsh/Nexa/releases">
-    <img src="https://img.shields.io/github/downloads/201Harsh/Nexa/total?style=for-the-badge&color=10b981&logo=download&logoColor=white" alt="Downloads">
+  <a href="https://github.com/mehar99197/Nexa_Ai_Agent/releases">
+    <img src="https://img.shields.io/github/downloads/mehar99197/Nexa_Ai_Agent/total?style=for-the-badge&color=10b981&logo=download&logoColor=white" alt="Downloads">
   </a>
 </div>
 
@@ -234,7 +234,7 @@ Nexa is forged using a high-performance stack combining web technologies with de
 ### 1. Clone Repo
 
 ```bash
-git clone https://github.com/201Harsh/Nexa.git
+git clone https://github.com/mehar99197/Nexa_Ai_Agent.git
 cd Nexa
 ```
 
