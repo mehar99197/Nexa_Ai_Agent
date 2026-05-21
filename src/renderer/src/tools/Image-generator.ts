@@ -7,7 +7,7 @@ export const handleImageGeneration = async (prompt: string) => {
   window.dispatchEvent(loadingEvent)
 
   try {
-    const HF_API_KEY = localStorage.getItem('iris_hf_api_key') || ''
+    const HF_API_KEY = localStorage.getItem('nexa_hf_api_key') || ''
 
     if (!HF_API_KEY.trim()) {
       throw new Error(

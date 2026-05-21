@@ -5,7 +5,7 @@ import crypto from 'crypto'
 import { GoogleGenAI } from '@google/genai'
 import Groq from 'groq-sdk'
 
-const getStateDir = () => path.join(app.getPath('userData'), 'iris_scan_states')
+const getStateDir = () => path.join(app.getPath('userData'), 'nexa_scan_states')
 
 interface ScanState {
   dirPath: string

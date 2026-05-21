@@ -1,6 +1,6 @@
 export const buildAnimatedWebsite = async (prompt: string) => {
   try {
-    const geminiKey = localStorage.getItem('iris_custom_api_key') || ''
+    const geminiKey = localStorage.getItem('nexa_custom_api_key') || ''
 
     if (!geminiKey.trim()) {
       return `❌ System Error: Missing Gemini API Key. Please update it in the Command Center Vault.`

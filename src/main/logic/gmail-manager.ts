@@ -104,7 +104,7 @@ export default function registerGmailHandlers(ipcMain: IpcMain) {
 
       if (!messages.length) return { speechText: prefix + '📭 Inbox is empty.', uiData: [] }
 
-      let emailListForIris: string[] = []
+      let emailListForNexa: string[] = []
       let uiDataArray: any[] = []
 
       for (const msg of messages) {
@@ -118,7 +118,7 @@ export default function registerGmailHandlers(ipcMain: IpcMain) {
 
         const parsed = parseMessageParts(fullMsg.data.payload)
 
-        emailListForIris.push(`📧 From: ${from}\nSubject: ${subject}\nPreview: ${snippet}\n`)
+        emailListForNexa.push(`📧 From: ${from}\nSubject: ${subject}\nPreview: ${snippet}\n`)
 
         uiDataArray.push({
           id: fullMsg.data.id,
@@ -132,7 +132,7 @@ export default function registerGmailHandlers(ipcMain: IpcMain) {
       }
 
       return {
-        speechText: prefix + emailListForIris.join('\n---\n'),
+        speechText: prefix + emailListForNexa.join('\n---\n'),
         uiData: uiDataArray
       }
     } catch (e: any) {

@@ -206,7 +206,7 @@ export default function registerPhantomKeyboard() {
     if (!event) return
     try {
       let apiKey = ''
-      const secureConfigPath = path.join(app.getPath('userData'), 'iris_secure_vault.json')
+      const secureConfigPath = path.join(app.getPath('userData'), 'nexa_secure_vault.json')
 
       if (fsSync.existsSync(secureConfigPath)) {
         try {
@@ -224,7 +224,7 @@ export default function registerPhantomKeyboard() {
         if (phantomWindow) {
           phantomWindow.webContents.send(
             'phantom-error',
-            'CRITICAL: Missing Gemini API Key.\nPlease launch the main IRIS Dashboard and update your Command Center Vault.'
+            'CRITICAL: Missing Gemini API Key.\nPlease launch the main Nexa Dashboard and update your Command Center Vault.'
           )
         }
         return

@@ -71,7 +71,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
       if (!pipeline) pipeline = (await import('@xenova/transformers')).pipeline
       if (!lancedb) lancedb = await import('vectordb')
 
-      const dbPath = path.join(app.getPath('userData'), 'iris_semantic_db')
+      const dbPath = path.join(app.getPath('userData'), 'nexa_semantic_db')
       const db = await lancedb.connect(dbPath)
 
       const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
@@ -190,7 +190,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
         try {
           if (!pipeline) pipeline = (await import('@xenova/transformers')).pipeline
           if (!lancedb) lancedb = await import('vectordb')
-          const dbPath = path.join(app.getPath('userData'), 'iris_semantic_db')
+          const dbPath = path.join(app.getPath('userData'), 'nexa_semantic_db')
           if (!fs.existsSync(dbPath)) return
 
           const db = await lancedb.connect(dbPath)

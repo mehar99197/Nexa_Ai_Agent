@@ -190,7 +190,7 @@ const nodeTypes = { customTool: ToolNode }
 function Editor() {
   const [nodes, setNodes] = useState<any[]>([])
   const [edges, setEdges] = useState<any[]>([])
-  const [workflowName, setWorkflowName] = useState('New IRIS Macro')
+  const [workflowName, setWorkflowName] = useState('New Nexa Macro')
   const [description, setDescription] = useState('Custom Macro')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [isSaved, setIsSaved] = useState(false)
@@ -217,7 +217,7 @@ function Editor() {
   }
 
   const resetCanvas = () => {
-    setWorkflowName('New IRIS Macro')
+    setWorkflowName('New Nexa Macro')
     setDescription('Custom Macro')
     setNodes([])
     setEdges([])
@@ -499,6 +499,7 @@ function Editor() {
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           className="bg-[#09090b]"
+          proOptions={{ hideAttribution: true }}
         >
           <Background color="#27272a" gap={20} size={1} />
           <Controls className="react-flow__controls" />

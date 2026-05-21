@@ -5,16 +5,17 @@ export const getMacroSequence = async (macroName: string) => {
 
     if (workflows.length === 0) return { success: false, error: `No macros exist.` }
 
-    const targetClean = macroName
-      .toLowerCase()
-      .replace(/macro|routine|flow|run|execute/g, '')
-      .trim()
-    let macro = workflows.find((w: any) => w.name.toLowerCase().trim() === targetClean)
+    // First: exact match (case-insensitive)
+    let macro = workflows.find(
+      (w: any) => w.name.toLowerCase().trim() === macroName.toLowerCase().trim()
+    )
 
+    // Second: substring match
     if (!macro) {
+      const targetLower = macroName.toLowerCase().trim()
       macro = workflows.find(
         (w: any) =>
-          w.name.toLowerCase().includes(targetClean) || targetClean.includes(w.name.toLowerCase())
+          w.name.toLowerCase().includes(targetLower) || targetLower.includes(w.name.toLowerCase())
       )
     }
 
@@ -26,10 +27,14 @@ export const getMacroSequence = async (macroName: string) => {
       }
     }
 
-    let sequence : any = []
-    let queue = [
-      macro.nodes.find((n: any) => n.data.tool.name === 'TRIGGER_VOICE') || macro.nodes[0]
-    ]
+    let sequence: any = []
+
+    // Find the entry point: TRIGGER_VOICE, TRIGGER, or first node
+    const triggerNode = macro.nodes.find(
+      (n: any) => n.data.tool.name === 'TRIGGER_VOICE' || n.data.tool.name === 'TRIGGER'
+    ) || macro.nodes[0]
+
+    let queue = [triggerNode]
     let visited = new Set()
 
     while (queue.length > 0) {
@@ -40,7 +45,8 @@ export const getMacroSequence = async (macroName: string) => {
       const toolName = currentNode.data.tool.name
       const inputs = currentNode.data.inputs || {}
 
-      if (toolName !== 'TRIGGER_VOICE') {
+      // Skip trigger nodes (both types)
+      if (toolName !== 'TRIGGER_VOICE' && toolName !== 'TRIGGER') {
         sequence.push({ tool: toolName, args: inputs })
       }
 

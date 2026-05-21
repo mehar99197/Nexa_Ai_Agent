@@ -1,21 +1,21 @@
 <div align="center">
 
-![IRIS Neural OS Documentation Banner](./assets/banner.jpeg)
+![Nexa Neural OS Documentation Banner](./assets/banner.jpeg)
 
 ## The Autonomous Neural OS Agent
 
 <div style="display: flex; justify-center; gap: 10px; margin-bottom: 20px;">
-  <a href="https://github.com/201Harsh/IRIS-AI/stargazers">
-    <img src="https://img.shields.io/github/stars/201Harsh/IRIS-AI?style=for-the-badge&color=10b981&logo=github&logoColor=white" alt="GitHub stars">
+  <a href="https://github.com/201Harsh/Nexa/stargazers">
+    <img src="https://img.shields.io/github/stars/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=github&logoColor=white" alt="GitHub stars">
   </a>
-  <a href="https://github.com/201Harsh/IRIS-AI/network/members">
-    <img src="https://img.shields.io/github/forks/201Harsh/IRIS-AI?style=for-the-badge&color=10b981&logo=git&logoColor=white" alt="GitHub forks">
+  <a href="https://github.com/201Harsh/Nexa/network/members">
+    <img src="https://img.shields.io/github/forks/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=git&logoColor=white" alt="GitHub forks">
   </a>
-  <a href="https://github.com/201Harsh/IRIS-AI/graphs/contributors">
-    <img src="https://img.shields.io/github/contributors/201Harsh/IRIS-AI?style=for-the-badge&color=10b981&logo=users&logoColor=white" alt="Contributors">
+  <a href="https://github.com/201Harsh/Nexa/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/201Harsh/Nexa?style=for-the-badge&color=10b981&logo=users&logoColor=white" alt="Contributors">
   </a>
-  <a href="https://github.com/201Harsh/IRIS-AI/releases">
-    <img src="https://img.shields.io/github/downloads/201Harsh/IRIS-AI/total?style=for-the-badge&color=10b981&logo=download&logoColor=white" alt="Downloads">
+  <a href="https://github.com/201Harsh/Nexa/releases">
+    <img src="https://img.shields.io/github/downloads/201Harsh/Nexa/total?style=for-the-badge&color=10b981&logo=download&logoColor=white" alt="Downloads">
   </a>
 </div>
 
@@ -36,7 +36,7 @@
 - [📁 Project Structure](#-project-structure)
 - [🧠 Development Philosophy](#-development-philosophy)
 - [🤝 Contributing](#-contributing)
-- [🧩 Extending IRIS](#-extending-iris)
+- [🧩 Extending Nexa](#-extending-nexa)
 - [🧠 Roadmap](#-roadmap)
 - [⚠️ Disclaimer](#️-disclaimer)
 - [👨‍💻 Architect](#-architect)
@@ -46,11 +46,11 @@
 
 # ⚡ Overview
 
-IRIS is not a chatbot.
+Nexa is not a chatbot.
 
 It is a **local-first AI Operating System layer** that executes real-world actions across your system, applications, and devices.
 
-> Speak your command. IRIS executes it.
+> Speak your command. Nexa executes it.
 
 ---
 
@@ -176,7 +176,7 @@ window.electron.ipcRenderer.invoke('tool-name', payload)
 
 # 💻 Tech Stack
 
-IRIS is forged using a high-performance stack combining web technologies with deep native OS access and state-of-the-art AI models.
+Nexa is forged using a high-performance stack combining web technologies with deep native OS access and state-of-the-art AI models.
 
 ### 🖥️ Core Desktop & UI Framework
 
@@ -234,8 +234,8 @@ IRIS is forged using a high-performance stack combining web technologies with de
 ### 1. Clone Repo
 
 ```bash
-git clone https://github.com/201Harsh/IRIS-AI.git
-cd IRIS-AI
+git clone https://github.com/201Harsh/Nexa.git
+cd Nexa
 ```
 
 ### 2. Install Dependencies
@@ -264,11 +264,11 @@ npm run dev
 
 ## 🔑 System Keys & Configuration
 
-IRIS operates locally, but requires specific API keys to bridge the gap to large language models and search engines. **Your keys are encrypted and stored locally on your machine. They are never sent to our servers.**
+Nexa operates locally, but requires specific API keys to bridge the gap to large language models and search engines. **Your keys are encrypted and stored locally on your machine. They are never sent to our servers.**
 
 ### How to Configure
 
-- **Desktop App Users:** Open IRIS, navigate to the **Settings Tab (Command Center) > API Keys**, and paste your keys directly into the vault.
+- **Desktop App Users:** Open Nexa, navigate to the **Settings Tab (Command Center) > API Keys**, and paste your keys directly into the vault.
 - **Developers (Running from source):** Rename `.env.example` to `.env` in the root directory and place your keys there for local testing.
 
 ### 🔴 Required Keys
@@ -276,7 +276,7 @@ IRIS operates locally, but requires specific API keys to bridge the gap to large
 The Neural OS requires these core engines to process logic and execute actions.
 
 - **[Google Gemini API](https://aistudio.google.com/app/apikey)** (`GEMINI_API_KEY`)
-  - **Role:** The primary reasoning and generative engine for IRIS.
+  - **Role:** The primary reasoning and generative engine for Nexa.
   - **Setup:** Sign in to Google AI Studio > Click 'Get API Key' > Create a key.
 
 - **[Groq API](https://console.groq.com/keys)** (`GROQ_API_KEY`)
@@ -295,13 +295,13 @@ These keys unlock advanced, autonomous subsystems.
   - **Role:** Required only if you are downloading and running local open-source inference models.
   - **Setup:** Create a Hugging Face account > Settings > Access Tokens > Create token with 'Read' permissions.
 
-> 💡 **Having trouble finding your keys?** Visit our official [Key Forging Guide](https://irisaiw.vercel.app/guide) for step-by-step instructions.
+> 💡 **Having trouble finding your keys?** Visit our official [Key Forging Guide](https://nexacode.vercel.app/guide) for step-by-step instructions.
 
 
 # 📁 Project Structure
 
 ```text
-iris/
+nexa/
 ├── build/                   # OS-specific build artifacts
 ├── out/                     # Compiled output ready for packaging
 ├── resources/               # Static assets (icons, trained data, etc.)
@@ -328,7 +328,7 @@ iris/
 
 ## 🤝 Contributing
 
-IRIS is built for the community. If you want to expand the neural forge, submit a PR.
+Nexa is built for the community. If you want to expand the neural forge, submit a PR.
 
 ### Quick Start
 
@@ -353,7 +353,7 @@ Keep your commit messages clean, descriptive, and easy to understand. Clearly st
 
 ---
 
-# 🧩 Extending IRIS
+# 🧩 Extending Nexa
 
 You can:
 
@@ -376,7 +376,7 @@ You can:
 
 # ⚠️ Disclaimer
 
-IRIS has deep system-level execution capabilities.  
+Nexa has deep system-level execution capabilities.  
 Use responsibly. The maintainers are not liable for misuse.
 
 ---
@@ -384,8 +384,8 @@ Use responsibly. The maintainers are not liable for misuse.
 
 # 👨‍💻 Architect
 
-**Harsh Pandey**  
-AI Systems Engineer and Project Leader
+**NexaCode Solutions**  
+AI Systems Engineering and Project Leadership
 
 Instagram: [@201Harshs](https://www.instagram.com/201harshs/)
 GitHub: [@201Harsh](https://github.com/201Harsh)
@@ -401,11 +401,11 @@ MIT License — see LICENSE file.
 
 # 🟥 Final Note
 
-**IRIS is not a chatbot.** It is a **neural extension of your operating system**.
+**Nexa is not a chatbot.** It is a **neural extension of your operating system**.
 
 > _System Online._
 
-# Made with ❤️ by [Harsh Pandey](https://instagram.com/201Harshs)
+# Made with ❤️ by [NexaCode Solutions](https://instagram.com/201Harshs)
 
 
 ---

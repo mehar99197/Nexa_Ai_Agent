@@ -66,7 +66,7 @@ AxiosInstance.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const currentRefreshToken = localStorage.getItem('iris_cloud_token')
+        const currentRefreshToken = localStorage.getItem('nexa_cloud_token')
 
         if (!currentRefreshToken) {
           throw new Error('No refresh token found in local storage.')
@@ -79,7 +79,7 @@ AxiosInstance.interceptors.response.use(
         const newAccessToken = res.data.accessToken
 
         if (res.data.refreshToken) {
-          localStorage.setItem('iris_cloud_token', res.data.refreshToken)
+          localStorage.setItem('nexa_cloud_token', res.data.refreshToken)
         }
 
         useAuthStore.getState().setAccessToken(newAccessToken)
@@ -94,7 +94,7 @@ AxiosInstance.interceptors.response.use(
         processQueue(err, null)
 
         useAuthStore.getState().logout()
-        localStorage.removeItem('iris_cloud_token')
+        localStorage.removeItem('nexa_cloud_token')
         window.location.hash = '#/login'
 
         return Promise.reject(err)

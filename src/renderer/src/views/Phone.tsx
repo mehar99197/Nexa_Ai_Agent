@@ -21,8 +21,8 @@ import {
 } from 'react-icons/ri'
 
 const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
-  const [ip, setIp] = useState(() => localStorage.getItem('iris_adb_ip') || '')
-  const [port, setPort] = useState(() => localStorage.getItem('iris_adb_port') || '5555')
+  const [ip, setIp] = useState(() => localStorage.getItem('nexa_adb_ip') || '')
+  const [port, setPort] = useState(() => localStorage.getItem('nexa_adb_port') || '5555')
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected'>('idle')
   const [uiMode, setUiMode] = useState<'history' | 'manual'>('history')
   const [errorMsg, setErrorMsg] = useState('')
@@ -110,8 +110,8 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
   }
 
   const handleManualConnect = () => {
-    localStorage.setItem('iris_adb_ip', ip)
-    localStorage.setItem('iris_adb_port', port)
+    localStorage.setItem('nexa_adb_ip', ip)
+    localStorage.setItem('nexa_adb_port', port)
     connectToDevice(ip, port)
   }
 
@@ -565,7 +565,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
           <div className="mb-6 p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
             <p className="text-[10px] text-purple-400 font-mono leading-relaxed text-center">
-              IRIS is listening via the primary neural audio interface. Voice commands for app
+              Nexa is listening via the primary neural audio interface. Voice commands for app
               execution are online.
             </p>
           </div>

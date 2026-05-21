@@ -35,7 +35,7 @@ For bug fixes or regressions, explain why this happened, not just what changed. 
 
 - **Root cause:** - **Missing detection / guardrail:** - **Why this regressed now:** ## Security Impact (Required 🚨)
 
-Because IRIS executes local OS commands, security reviews are mandatory.
+Because Nexa executes local OS commands, security reviews are mandatory.
 
 - New OS permissions or hardware capabilities accessed? (`Yes/No`)
 - IPC channel payload validation changed? (`Yes/No`)

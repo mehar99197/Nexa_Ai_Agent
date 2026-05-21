@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import MiniOverlay from './components/MiniOverlay'
-import { irisService } from './services/Iris-voice-ai'
+import { nexaService } from './services/Nexa-voice-ai'
 import { getScreenSourceId } from './hooks/CaptureDesktop'
-import IRIS from './UI/IRIS'
+import Nexa from './UI/Nexa'
 import TerminalOverlay from './components/TerminalOverlay'
 import LeafletMapWidget from './Widgets/MapView'
 import ImageWidget from './Widgets/ImageWidget'
@@ -40,11 +40,18 @@ const IndexRoot = () => {
   }, [])
 
   useEffect(() => {
+    let disconnectGrace = 0
     const watchdog = setInterval(() => {
-      if (isSystemActive && !irisService.isConnected) {
-        setIsSystemActive(false)
-        setIsMicMuted(true)
-        stopVision()
+      if (isSystemActive && !nexaService.isConnected) {
+        disconnectGrace++
+        if (disconnectGrace >= 3) {
+          setIsSystemActive(false)
+          setIsMicMuted(true)
+          stopVision()
+          disconnectGrace = 0
+        }
+      } else {
+        disconnectGrace = 0
       }
     }, 1000)
     return () => clearInterval(watchdog)
@@ -53,14 +60,18 @@ const IndexRoot = () => {
   const toggleSystem = async () => {
     if (!isSystemActive) {
       try {
-        await irisService.connect()
+        await nexaService.connect()
         setIsSystemActive(true)
         setIsMicMuted(false)
-        irisService.setMute(false)
+        nexaService.setMute(false)
       } catch (err: any) {
         if (err.message === 'NO_API_KEY') {
           alert(
             '⚠️ CRITICAL ERROR: Gemini API Key is missing. Please enter it in the Command Center Vault (Settings Tab).'
+          )
+        } else if (err.message === 'NO_MICROPHONE') {
+          alert(
+            'Hardware Error: No microphone detected. Please connect an input device to initialize.'
           )
         } else {
           alert(`Connection failed: ${err.message}`)
@@ -68,10 +79,10 @@ const IndexRoot = () => {
         setIsSystemActive(false)
       }
     } else {
-      irisService.disconnect()
+      nexaService.disconnect()
       setIsSystemActive(false)
       setIsMicMuted(true)
-      irisService.setMute(true)
+      nexaService.setMute(true)
       stopVision()
     }
   }
@@ -79,7 +90,7 @@ const IndexRoot = () => {
   const toggleMic = () => {
     const s = !isMicMuted
     setIsMicMuted(s)
-    irisService.setMute(s)
+    nexaService.setMute(s)
   }
 
   const startVision = async (mode: 'camera' | 'screen') => {
@@ -153,7 +164,7 @@ const IndexRoot = () => {
 
     aiIntervalRef.current = setInterval(() => {
       const vid = processingVideoRef.current
-      if (vid && vid.readyState === 4 && irisService.socket?.readyState === WebSocket.OPEN) {
+      if (vid && vid.readyState === 4 && nexaService.socket?.readyState === WebSocket.OPEN) {
         const canvas = document.createElement('canvas')
         canvas.width = 800
         canvas.height = 450
@@ -161,7 +172,7 @@ const IndexRoot = () => {
         if (ctx) {
           ctx.drawImage(vid, 0, 0, canvas.width, canvas.height)
           const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
-          irisService.sendVideoFrame(base64)
+          nexaService.sendVideoFrame(base64)
         }
       }
     }, 2000)
@@ -188,7 +199,7 @@ const IndexRoot = () => {
     <div className="flex flex-col h-screen w-screen bg-black overflow-hidden relative border border-emerald-500/20 rounded-xl">
       <TitleBar />
       <div className="flex-1 relative">
-        <IRIS
+        <Nexa
           isSystemActive={isSystemActive}
           toggleSystem={toggleSystem}
           isMicMuted={isMicMuted}

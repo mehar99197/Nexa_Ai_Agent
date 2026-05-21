@@ -1,5 +1,5 @@
-appId: com.harshpandey.iris
-productName: IRIS AI
+appId: com.nexacode.nexa
+productName: Nexa
 directories:
   buildResources: build
 files:
@@ -13,7 +13,7 @@ asarUnpack:
   - resources/**
 
 win:
-  executableName: iris-ai
+  executableName: nexa
   icon: build/icon.ico
   target:
     - target: nsis
@@ -49,7 +49,7 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: Harsh Pandey
+  maintainer: NexaCode Solutions
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
@@ -58,4 +58,4 @@ npmRebuild: false
 publish:
   provider: github
   owner: 201Harsh
-  repo: IRIS-AI
+  repo: Nexa

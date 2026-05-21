@@ -1,5 +1,5 @@
 name: Feature Request
-description: Propose a new capability, module, or tool for the IRIS Neural OS.
+description: Propose a new capability, module, or tool for the Nexa Neural OS.
 title: '[Feature]: '
 labels:
   - enhancement
@@ -22,7 +22,7 @@ body:
     attributes:
       label: Problem to solve
       description: What user pain this solves and why the current behavior or toolset is insufficient.
-      placeholder: 'Example: Currently, IRIS relies on cloud APIs for inference. If the user loses internet, the execution engine halts.'
+      placeholder: 'Example: Currently, Nexa relies on cloud APIs for inference. If the user loses internet, the execution engine halts.'
     validations:
       required: true
   - type: textarea

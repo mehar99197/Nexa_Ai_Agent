@@ -70,7 +70,7 @@ export default function registerScreenPeeler() {
         <body>
           <div id="hud">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
-            IRIS SP - Select Area to Rip
+            NEXA SP - Select Area to Rip
           </div>
           <div id="selection">
             <div class="corner tl"></div><div class="corner tr"></div>
@@ -368,7 +368,7 @@ export default function registerScreenPeeler() {
 
       try {
         let apiKey = ''
-        const secureConfigPath = path.join(app.getPath('userData'), 'iris_secure_vault.json')
+        const secureConfigPath = path.join(app.getPath('userData'), 'nexa_secure_vault.json')
 
         if (fsSync.existsSync(secureConfigPath)) {
           try {

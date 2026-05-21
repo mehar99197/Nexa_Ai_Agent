@@ -4,7 +4,7 @@ import { IpcMain, App } from 'electron'
 
 export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
   const CHAT_DIR = path.resolve(app.getPath('userData'), 'Chat')
-  const FILE_PATH = path.join(CHAT_DIR, 'iris_memory.json')
+  const FILE_PATH = path.join(CHAT_DIR, 'nexa_memory.json')
 
   ipcMain.removeHandler('add-message')
   ipcMain.removeHandler('get-history')
@@ -40,8 +40,16 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
       if (fs.existsSync(FILE_PATH)) {
         const data = fs.readFileSync(FILE_PATH, 'utf-8')
         const raw = JSON.parse(data)
-        return raw.map((m: any) => ({
-          role: m.role === 'iris' ? 'model' : m.role,
+
+        const filtered = raw.filter((m: any) => {
+          const text: string = m.content || ''
+          if (text.includes('[System Notice]') || text.includes('Context update only')) return false
+          if (/^context updated|^acknowledged|^noted|no reply necessary|no response necessary/i.test(text)) return false
+          return true
+        })
+
+        return filtered.map((m: any) => ({
+          role: m.role === 'nexa' ? 'model' : m.role,
           parts: [{ text: m.content }]
         }))
       }

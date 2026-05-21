@@ -21,7 +21,7 @@ import { HiComputerDesktop } from 'react-icons/hi2'
 import * as faceapi from 'face-api.js'
 import { VisionMode } from '@renderer/IndexRoot'
 
-interface IrisProps {
+interface NexaProps {
   isSystemActive: boolean
   toggleSystem: () => void
   isMicMuted: boolean
@@ -34,7 +34,7 @@ interface IrisProps {
 }
 
 interface DashboardViewProps {
-  props: IrisProps
+  props: NexaProps
   stats: any
   chatHistory: any[]
   onVisionClick: () => void

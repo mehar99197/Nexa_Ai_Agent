@@ -45,7 +45,7 @@ body:
       label: Steps to reproduce
       description: Provide the shortest deterministic repro path supported by direct observation.
       placeholder: |
-        1. Start IRIS packaged .exe on Windows 11.
+        1. Start Nexa packaged .exe on Windows 11.
         2. Focus on VS Code and press `Ctrl+Alt+Space`.
         3. Speak command "Write a python script".
         4. Observe no text injected and check Electron console for `ipcRenderer timeout`.
@@ -70,7 +70,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: IRIS version
+      label: Nexa version
       description: Exact version/build tested (check your package.json or releases).
       placeholder: '1.2.0'
     validations:
@@ -87,7 +87,7 @@ body:
     id: install_method
     attributes:
       label: Install method
-      description: How IRIS was launched.
+      description: How Nexa was launched.
       placeholder: 'npm run dev / Packaged Windows .exe / Docker Compose (Web Interface)'
     validations:
       required: true
@@ -95,7 +95,7 @@ body:
     id: module
     attributes:
       label: Affected Module / Tool
-      description: Which part of the IRIS system is failing?
+      description: Which part of the Nexa system is failing?
       placeholder: 'Phantom Typer / Local RAG (LanceDB) / ADB Mobile Link / Screen Peeler'
     validations:
       required: true

@@ -2,8 +2,8 @@ export const runDeepResearch = async (query: string): Promise<string> => {
   try {
     window.dispatchEvent(new CustomEvent('deep-research-start', { detail: { query } }))
 
-    const tavilyKey = localStorage.getItem('iris_tailvy_api_key') || ''
-    const groqKey = localStorage.getItem('iris_groq_api_key') || ''
+    const tavilyKey = localStorage.getItem('nexa_tailvy_api_key') || ''
+    const groqKey = localStorage.getItem('nexa_groq_api_key') || ''
 
     const result = await window.electron.ipcRenderer.invoke('execute-deep-research', {
       query,

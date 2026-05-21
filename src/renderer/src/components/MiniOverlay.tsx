@@ -8,7 +8,7 @@ import {
   RiDragMove2Fill
 } from 'react-icons/ri'
 import { GiPowerButton } from 'react-icons/gi'
-import { irisService } from '@renderer/services/Iris-voice-ai'
+import { nexaService } from '@renderer/services/Nexa-voice-ai'
 import { VisionMode } from '@renderer/IndexRoot'
 
 interface OverlayProps {
@@ -37,9 +37,9 @@ const MiniOverlay = ({
   const dataArrayRef = useRef<Uint8Array | any | null>(null)
 
   useEffect(() => {
-    if (isSystemActive && irisService.analyser) {
-      analyzerRef.current = irisService.analyser
-      dataArrayRef.current = new Uint8Array(irisService.analyser.frequencyBinCount)
+    if (isSystemActive && nexaService.analyser) {
+      analyzerRef.current = nexaService.analyser
+      dataArrayRef.current = new Uint8Array(nexaService.analyser.frequencyBinCount)
       const checkAudio = () => {
         if (analyzerRef.current && dataArrayRef.current) {
           analyzerRef.current.getByteFrequencyData(dataArrayRef.current)

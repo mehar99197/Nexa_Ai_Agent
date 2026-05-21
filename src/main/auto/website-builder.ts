@@ -12,7 +12,7 @@ export default function registerWebsiteBuilder() {
       previewWin = new BrowserWindow({
         width: 1280,
         height: 720,
-        title: 'IRIS Live Forge :: Web Synthesis',
+        title: 'Nexa Live Forge :: Web Synthesis',
         backgroundColor: '#050505',
         autoHideMenuBar: true,
         webPreferences: {
@@ -25,7 +25,7 @@ export default function registerWebsiteBuilder() {
         <html>
           <body style="margin:0; overflow:hidden; background: #050505;">
             <div id="loader" style="position:absolute; top:10px; left:10px; color:#00ffaa; font-family:monospace; font-size:12px; z-index:9999; text-shadow: 0 0 5px #00ffaa;">
-              [ IRIS LIVE FORGE :: SYNTHESIZING UI... ]
+              [ NEXA LIVE FORGE :: SYNTHESIZING UI... ]
             </div>
             <iframe id="live-frame" style="width:100vw; height:100vh; border:none;"></iframe>
           </body>

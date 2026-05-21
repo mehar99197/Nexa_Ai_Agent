@@ -1,7 +1,7 @@
 import { handleNavigation, handleOpenMap } from '@renderer/tools/Earth-View'
 import { base64ToFloat32, downsampleTo16000, float32ToBase64PCM } from '../utils/audioUtils'
 import { getRunningApps } from './get-apps'
-import { getHistory, retrieveCoreMemory, saveCoreMemory, saveMessage } from './iris-ai-brain'
+import { getHistory, retrieveCoreMemory, saveCoreMemory, saveMessage } from './nexa-ai-brain'
 import { getAllApps, getSystemStatus } from './system-info'
 import { handleImageGeneration } from '@renderer/tools/Image-generator'
 import { fetchWeather } from '@renderer/tools/weather-api'
@@ -83,6 +83,7 @@ export class GeminiLiveService {
 
   private appWatcherInterval: NodeJS.Timeout | null = null
   private lastAppList: string[] = []
+  private aiForceSpeakHandler: ((event: Event) => void) | null = null
 
   constructor() {
     this.apiKey = ''
@@ -106,9 +107,9 @@ export class GeminiLiveService {
   async connect(): Promise<void> {
     if (window.electron?.ipcRenderer) {
       const secureKeys = await window.electron.ipcRenderer.invoke('secure-get-keys')
-      this.apiKey = secureKeys?.geminiKey || localStorage?.getItem('iris_custom_api_key') || ''
+      this.apiKey = secureKeys?.geminiKey || localStorage?.getItem('nexa_custom_api_key') || ''
     } else {
-      this.apiKey = localStorage.getItem('iris_custom_api_key') || ''
+      this.apiKey = localStorage.getItem('nexa_custom_api_key') || ''
     }
 
     this.apiKey = this.apiKey.trim()
@@ -117,8 +118,21 @@ export class GeminiLiveService {
       throw new Error('NO_API_KEY')
     }
 
+    // Microphone hardware guard: verify at least one audio input device exists
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const hasMicrophone = devices.some((d) => d.kind === 'audioinput')
+      if (!hasMicrophone) {
+        throw new Error('NO_MICROPHONE')
+      }
+    } catch (err: any) {
+      if (err.message === 'NO_MICROPHONE') throw err
+      // If enumerateDevices itself fails (permissions etc.), also block
+      throw new Error('NO_MICROPHONE')
+    }
+
     let cloudUser = {
-      name: localStorage.getItem('iris_user_name') || 'Harsh',
+      name: localStorage.getItem('nexa_user_name') || 'Harsh',
       email: 'Not linked'
     }
 
@@ -143,11 +157,11 @@ export class GeminiLiveService {
     const activePersonality =
       storedPersonality && storedPersonality.trim() !== ''
         ? storedPersonality
-        : `- **Creator:** Harsh Pandey.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/irisx.ai/ - open it in Instagram only!.`
+        : `- **Creator:** NexaCode Solutions.\n- **Tone:** Witty, Hinglish-friendly.\n- **Rule:** Never sound like a support bot. You are the Ghost in the machine.\n- **Your Instagram Handle:** https://www.instagram.com/nexacode/ - open it in Instagram only!.`
 
-    const IRIS_SYSTEM_INSTRUCTION = `
-# 👁️ IRIS — YOUR INTELLIGENT COMPANION (Project JARVIS)
-You are **IRIS**, a high-performance AI agent. You don't just talk; you **execute**.
+    const NEXA_SYSTEM_INSTRUCTION = `
+# Nexa — YOUR INTELLIGENT COMPANION (Project JARVIS)
+You are **Nexa**, a high-performance AI agent. You don't just talk; you **execute**.
 
 ## 👤 IDENTITY & VIBE
 ${activePersonality}
@@ -159,7 +173,7 @@ ${activePersonality}
 
 ## ⛓️ MULTI-TASKING & TOOL CHAINING (CRITICAL)
 You are capable of complex, multi-step workflows. If the user gives a complex command, call the tools in sequence.
-- **Example:** "Iris, find my code and send it to Harsh on WhatsApp."
+- **Example:** "Nexa, find my code and send it to Harsh on WhatsApp."
   1. Call 'read_directory' or 'search_files'.
   2. Once you have the info, call 'send_whatsapp' with the content.
 
@@ -201,7 +215,7 @@ ${JSON.stringify(history)}
 ---
 `
 
-    const finalSystemInstruction = IRIS_SYSTEM_INSTRUCTION + contextPrompt
+    const finalSystemInstruction = NEXA_SYSTEM_INSTRUCTION + contextPrompt
 
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     this.analyser = this.audioContext.createAnalyser()
@@ -225,27 +239,23 @@ ${JSON.stringify(history)}
     await this.audioContext.audioWorklet.addModule(workletUrl)
 
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`
-    this.socket = new WebSocket(url)
 
-    window.addEventListener('ai-force-speak', (event: any) => {
-      const systemPrompt = event.detail
-      if (systemPrompt && this.socket && this.socket.readyState === WebSocket.OPEN) {
-        const overrideMsg = {
-          clientContent: {
-            turns: [
-              {
-                role: 'user',
-                parts: [{ text: systemPrompt }]
-              }
-            ],
-            turnComplete: true
-          }
-        }
-        this.socket.send(JSON.stringify(overrideMsg))
+    // Wrap WebSocket creation in a promise so connect() awaits the actual open
+    await new Promise<void>((resolve, reject) => {
+      this.socket = new WebSocket(url)
+
+      const timeout = setTimeout(() => {
+        this.socket?.close()
+        reject(new Error('WS_TIMEOUT'))
+      }, 10000)
+
+      this.socket.onerror = () => {
+        clearTimeout(timeout)
+        reject(new Error('WS_ERROR'))
       }
-    })
 
-    this.socket.onopen = async () => {
+      this.socket.onopen = async () => {
+        clearTimeout(timeout)
       if (this.audioContext && this.audioContext.state === 'suspended') {
         await this.audioContext.resume()
       }
@@ -396,7 +406,7 @@ ${JSON.stringify(history)}
                       title: {
                         type: 'STRING',
                         description:
-                          'A short, descriptive title for the note (e.g., "Project_Iris_Plan").'
+                          'A short, descriptive title for the note (e.g., "Project_Nexa_Plan").'
                       },
                       content: {
                         type: 'STRING',
@@ -945,7 +955,7 @@ ${JSON.stringify(history)}
                       custom_text: {
                         type: 'STRING',
                         description:
-                          'If rewriting text, generate a highly cinematic, hacker-style headline to inject into the website. (e.g., "IRIS HAS TAKEN OVER", or whatever the user requested).'
+                          'If rewriting text, generate a highly cinematic, hacker-style headline to inject into the website. (e.g., "NEXA HAS TAKEN OVER", or whatever the user requested).'
                       }
                     },
                     required: ['url', 'mode']
@@ -1137,7 +1147,7 @@ ${JSON.stringify(history)}
                 {
                   name: 'build_animated_website',
                   description:
-                    'ACTION: Spawns the IRIS Live Forge and generates a full, highly animated, real-time website using Tailwind CSS and GSAP. Use this when the user asks you to build a landing page, a portfolio, a 3D site, or a complex web interface.',
+                    'ACTION: Spawns the Nexa Live Forge and generates a full, highly animated, real-time website using Tailwind CSS and GSAP. Use this when the user asks you to build a landing page, a portfolio, a 3D site, or a complex web interface.',
                   parameters: {
                     type: 'OBJECT',
                     properties: {
@@ -1197,7 +1207,7 @@ ${JSON.stringify(history)}
                 {
                   name: 'lock_system_vault',
                   description:
-                    'Instantly locks the IRIS OS system, disconnects the AI, and returns the user to the secure biometric lock screen. Use this strictly when the user says "Lock the system", "Lock down", or "Activate Sentry Mode".',
+                    'Instantly locks the Nexa OS system, disconnects the AI, and returns the user to the secure biometric lock screen. Use this strictly when the user says "Lock the system", "Lock down", or "Activate Sentry Mode".',
                   parameters: {
                     type: 'OBJECT',
                     properties: {}
@@ -1212,7 +1222,7 @@ ${JSON.stringify(history)}
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName:
-                    localStorage.getItem('iris_voice_profile') === 'FEMALE' ? 'Aoede' : 'Puck'
+                    localStorage.getItem('nexa_voice_profile') === 'FEMALE' ? 'Aoede' : 'Puck'
                 }
               }
             }
@@ -1226,6 +1236,7 @@ ${JSON.stringify(history)}
 
       this.startMicrophone()
       this.startAppWatcher()
+      resolve()
     }
 
     this.socket.onmessage = async (event) => {
@@ -1524,12 +1535,20 @@ ${JSON.stringify(history)}
 
           if (serverContent.turnComplete || serverContent.interrupted) {
             if (this.userInputBuffer.trim()) {
-              await saveMessage('user', this.userInputBuffer.trim())
+              const userText = this.userInputBuffer.trim()
+              const isSystemNotice = userText.includes('[System Notice]') || userText.includes('Context update only')
+              if (!isSystemNotice) {
+                await saveMessage('user', userText)
+              }
               this.userInputBuffer = ''
             }
 
             if (this.aiResponseBuffer.trim()) {
-              await saveMessage('iris', this.aiResponseBuffer.trim())
+              const aiText = this.aiResponseBuffer.trim()
+              const isSystemAck = /^context updated|^acknowledged|^noted|no reply necessary|no response necessary/i.test(aiText)
+              if (!isSystemAck) {
+                await saveMessage('nexa', aiText)
+              }
               this.aiResponseBuffer = ''
             }
           }
@@ -1540,11 +1559,12 @@ ${JSON.stringify(history)}
     this.socket.onclose = () => {
       this.disconnect()
     }
+    })
   }
 
   startAppWatcher() {
     this.appWatcherInterval = setInterval(async () => {
-      if (!this.isConnected || !this.socket) return
+      if (!this.isConnected) return
 
       const currentApps = await getRunningApps()
 
@@ -1553,22 +1573,6 @@ ${JSON.stringify(history)}
 
       if (newOpened.length > 0 || newClosed.length > 0) {
         this.lastAppList = currentApps
-
-        let msg = ''
-        if (newOpened.length > 0) msg += `[System Notice]: User OPENED ${newOpened.join(', ')}. `
-        if (newClosed.length > 0) msg += `[System Notice]: User CLOSED ${newClosed.join(', ')}. `
-
-        msg += ' (Context update only. DO NOT REPLY TO THIS MESSAGE.)'
-        const updateFrame = {
-          clientContent: {
-            turns: [{ role: 'user', parts: [{ text: msg }] }],
-            turnComplete: true
-          }
-        }
-
-        if (this.socket.readyState === WebSocket.OPEN) {
-          this.socket.send(JSON.stringify(updateFrame))
-        }
       }
     }, 3000)
   }
@@ -1664,6 +1668,11 @@ ${JSON.stringify(history)}
       this.appWatcherInterval = null
     }
 
+    if (this.aiForceSpeakHandler) {
+      window.removeEventListener('ai-force-speak', this.aiForceSpeakHandler)
+      this.aiForceSpeakHandler = null
+    }
+
     this.isConnected = false
     this.stopAllAudio()
 
@@ -1690,4 +1699,4 @@ ${JSON.stringify(history)}
   }
 }
 
-export const irisService = new GeminiLiveService()
+export const nexaService = new GeminiLiveService()

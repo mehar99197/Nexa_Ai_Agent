@@ -1,13 +1,12 @@
 import './assets/main.css'
 
-import React, { JSX, StrictMode, useEffect, useState } from 'react'
+import React, { JSX, StrictMode, useEffect, useState, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 
 import LockScreen from './UI/LockScreen'
 import LoginPage from './auth/Login'
 import { useAuthStore } from './store/auth-store'
-import AxiosInstance from './config/AxiosInstance'
 import AuthInitializer from './auth/AuthToken'
 import IndexRoot from './IndexRoot'
 
@@ -39,75 +38,45 @@ class SystemErrorBoundary extends React.Component<
   }
 }
 
-let isSessionUnlocked = false
-
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const [status, setStatus] = useState<'checking' | 'authorized'>('checking')
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  const accessToken = useAuthStore((state) => state.accessToken)
-  const logout = useAuthStore((state) => state.logout)
-
-  useEffect(() => {
-    const verifyAccess = async () => {
-      try {
-        if (!accessToken && !localStorage.getItem('iris_cloud_token')) {
-          navigate('/login', { replace: true })
-          return
-        }
-
-        const userRes = await AxiosInstance.get('/users/me')
-        if (userRes.status !== 200) throw new Error('Cloud Auth Failed')
-          
-
-
-        if (!isSessionUnlocked && location.pathname !== '/lock') {
-          navigate('/lock', { replace: true })
-          return
-        }
-
-        setStatus('authorized')
-      } catch (error) {
-        logout()
-        navigate('/login', { replace: true })
-      }
-    }
-
-    verifyAccess()
-  }, [navigate, location.pathname, accessToken, logout])
-
-  if (status === 'checking') {
-    return (
-      <div className="h-screen w-screen bg-[#050505] flex items-center justify-center text-[#10b981] font-mono text-sm tracking-widest uppercase">
-        Verifying Security Clearance...
-      </div>
-    )
-  }
-
-  return children
-}
-
 const PublicRoute = ({ children }: { children: JSX.Element }) => {
   const accessToken =
-    useAuthStore((state) => state.accessToken) || localStorage.getItem('iris_cloud_token')
+    useAuthStore((state) => state.accessToken) || localStorage.getItem('nexa_cloud_token')
   return accessToken ? <Navigate to="/" replace /> : children
 }
 
 const AppRouter = () => {
   const navigate = useNavigate()
+  const [isUnlocked, setIsUnlocked] = useState(false)
+
+  const handleUnlock = useCallback(() => {
+    setIsUnlocked(true)
+    navigate('/')
+  }, [navigate])
+
+  const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+    if (!isUnlocked) return <Navigate to="/lock" replace />
+    return children
+  }
+
+  // Lock the app when Electron window is hidden / system sleeps
+  useEffect(() => {
+    if (!electronAPI) return
+    const handleLock = () => setIsUnlocked(false)
+    electronAPI.on('lock-screen', handleLock)
+    return () => electronAPI?.removeListener('lock-screen', handleLock)
+  }, [])
 
   useEffect(() => {
     if (electronAPI) {
       electronAPI.on('oauth-callback', (_event: any, url: string) => {
         try {
-          const urlObj = new URL(url.replace('iris://', 'http://localhost/'))
+          const urlObj = new URL(url.replace('nexa://', 'http://localhost/'))
 
           const refreshToken = urlObj.searchParams.get('refreshToken')
           const accessToken = urlObj.searchParams.get('accessToken')
 
           if (refreshToken && accessToken) {
-            localStorage.setItem('iris_cloud_token', refreshToken)
+            localStorage.setItem('nexa_cloud_token', refreshToken)
             useAuthStore.getState().setAccessToken(accessToken)
 
             navigate('/')
@@ -130,18 +99,10 @@ const AppRouter = () => {
         }
       />
 
-
       <Route
         path="/lock"
         element={
-          <ProtectedRoute>
-            <LockScreen
-              onUnlock={() => {
-                isSessionUnlocked = true
-                navigate('/')
-              }}
-            />
-          </ProtectedRoute>
+          <LockScreen onUnlock={handleUnlock} />
         }
       />
 

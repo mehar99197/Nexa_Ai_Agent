@@ -33,11 +33,3 @@ export const getAllApps = async (): Promise<AppItem[]> => {
     return []
   }
 }
-
-export const getDrives = async (): Promise<any[]> => {
-  try {
-    return await window.electron.ipcRenderer.invoke('get-drives')
-  } catch (error) {
-    return []
-  }
-}

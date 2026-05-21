@@ -16,7 +16,7 @@ import fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-import registerIpcHandlers from './logic/iris-memory-save'
+import registerIpcHandlers from './logic/nexa-memory-save'
 import registerSystemHandlers from './logic/get-system-info'
 import registerFileSearch from './logic/file-search'
 import registerFileOps from './logic/file-ops'
@@ -35,7 +35,7 @@ import registerGmailHandlers from './logic/gmail-manager'
 import registerLocationHandlers from './logic/live-location'
 import registerAdbHandlers from './logic/adb-manager'
 import registerRealityHacker from './logic/reality-hacker'
-import registerIrisCoder from './services/iris-coder'
+import registerNexaCoder from './services/nexa-coder'
 import registerTelekinesis from './logic/telekinesis'
 import registerPermanentMemory from './logic/permanent-memory'
 import registerWormhole from './services/wormhole'
@@ -53,12 +53,19 @@ import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
 
+// Suppress VAAPI / GPU initialization errors on Linux
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+  app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder')
+  app.commandLine.appendSwitch('ignore-gpu-blocklist')
+}
+
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient('iris', process.execPath, [path.resolve(process.argv[1])])
+    app.setAsDefaultProtocolClient('nexa', process.execPath, [path.resolve(process.argv[1])])
   }
 } else {
-  app.setAsDefaultProtocolClient('iris')
+  app.setAsDefaultProtocolClient('nexa')
 }
 
 const gotTheLock = app.requestSingleInstanceLock()
@@ -69,7 +76,7 @@ if (!gotTheLock) {
 let mainWindow: BrowserWindow | null = null
 let isOverlayMode = false
 
-const secureConfigPath = join(app.getPath('userData'), 'iris_secure_vault.json')
+const secureConfigPath = join(app.getPath('userData'), 'nexa_secure_vault.json')
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -91,6 +98,14 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) mainWindow.show()
+  })
+
+  mainWindow.on('blur', () => {
+    mainWindow?.webContents.send('lock-screen')
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
   })
 
   ipcMain.on('window-min', () => mainWindow?.minimize())
@@ -118,7 +133,7 @@ app.on('second-instance', (event, commandLine) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
-    const url = commandLine.find((arg) => arg.startsWith('iris://'))
+    const url = commandLine.find((arg) => arg.startsWith('nexa://'))
     if (url) {
       mainWindow.webContents.send('oauth-callback', url)
     }
@@ -156,40 +171,42 @@ function toggleOverlayMode() {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-  autoUpdater.checkForUpdatesAndNotify()
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.checkForUpdatesAndNotify()
 
-  autoUpdater.on('update-available', (info) => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Found',
-      message: `Neural Core Update Found: v${info.version}. Downloading in background...`
-    })
-  })
-
-  autoUpdater.on('error', (err) => {
-    dialog.showErrorBox(
-      'Auto-Updater Error',
-      err == null ? 'unknown error' : (err.stack || err).toString()
-    )
-  })
-
-  autoUpdater.on('update-downloaded', () => {
-    dialog
-      .showMessageBox({
+    autoUpdater.on('update-available', (info) => {
+      dialog.showMessageBox({
         type: 'info',
-        title: 'Update Ready',
-        message: 'New version downloaded! The system will now force reboot to apply the patch.',
-        buttons: ['Execute Restart']
+        title: 'Update Found',
+        message: `Nexa Core Update Found: v${info.version}. Downloading in background...`
       })
-      .then(() => {
-        setImmediate(() => {
-          app.removeAllListeners('window-all-closed')
-          autoUpdater.quitAndInstall(false, true)
+    })
+
+    autoUpdater.on('error', (err) => {
+      dialog.showErrorBox(
+        'Auto-Updater Error',
+        err == null ? 'unknown error' : (err.stack || err).toString()
+      )
+    })
+
+    autoUpdater.on('update-downloaded', () => {
+      dialog
+        .showMessageBox({
+          type: 'info',
+          title: 'Update Ready',
+          message: 'New version downloaded! The system will now force reboot to apply the patch.',
+          buttons: ['Execute Restart']
         })
-      })
-  })
+        .then(() => {
+          setImmediate(() => {
+            app.removeAllListeners('window-all-closed')
+            autoUpdater.quitAndInstall(false, true)
+          })
+        })
+    })
+  }
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     const allowedPermissions = [
@@ -294,7 +311,7 @@ app.whenReady().then(() => {
 
   app.on('open-url', (event, url) => {
     event.preventDefault()
-    if (mainWindow && url.startsWith('iris://')) {
+    if (mainWindow && url.startsWith('nexa://')) {
       mainWindow.webContents.send('oauth-callback', url)
     }
   })
@@ -312,7 +329,7 @@ app.whenReady().then(() => {
   registerWormhole({ ipcMain })
   registerPermanentMemory({ ipcMain, app })
   registerTelekinesis({ ipcMain })
-  registerIrisCoder({ ipcMain, app })
+  registerNexaCoder({ ipcMain, app })
   registerRealityHacker(ipcMain)
   registerAdbHandlers(ipcMain)
   registerLocationHandlers(ipcMain)
@@ -332,6 +349,10 @@ app.whenReady().then(() => {
   registerFileScanner(ipcMain)
   registerSystemHandlers(ipcMain)
   registerIpcHandlers({ ipcMain, app })
+
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion()
+  })
 
   ipcMain.handle('get-screen-source', async () => {
     const sources = await desktopCapturer.getSources({ types: ['screen'] })
@@ -353,6 +374,14 @@ app.on('will-quit', () => {
 })
 
 app.on('window-all-closed', () => {
+  // Clean up IPC listeners to prevent GLib-GObject orphaned handler warnings
+  if (mainWindow) {
+    mainWindow.removeAllListeners()
+    mainWindow.webContents.removeAllListeners()
+  }
+  ipcMain.removeAllListeners()
+  globalShortcut.unregisterAll()
+
   if (process.platform !== 'darwin') {
     app.quit()
   }

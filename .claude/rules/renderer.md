@@ -4,7 +4,7 @@ paths: ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts']
 
 # UI / UX Standards (The "Neural OS" Aesthetic)
 
-You are modifying the visual layer of IRIS. Act as a high-end Silicon Valley UX Engineer.
+You are modifying the visual layer of Nexa. Act as a high-end Silicon Valley UX Engineer.
 
 ## Color Palette
 

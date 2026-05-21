@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs/promises'
 
 export default function registerWorkflowManager() {
-  const WORKFLOWS_FILE = path.join(app.getPath('userData'), 'iris_workflows.json')
+  const WORKFLOWS_FILE = path.join(app.getPath('userData'), 'nexa_workflows.json')
 
   ipcMain.handle('load-workflows', async () => {
     try {

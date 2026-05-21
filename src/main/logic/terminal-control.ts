@@ -16,9 +16,13 @@ export default function registerSystemControl(ipcMain: IpcMain) {
 
       const win = BrowserWindow.getAllWindows()[0]
 
-      const child = spawn('powershell.exe', ['-Command', command], {
+      const isWin = process.platform === 'win32'
+      const shell = isWin ? 'powershell.exe' : '/bin/sh'
+      const args = isWin ? ['-Command', command] : ['-c', command]
+
+      const child = spawn(shell, args, {
         cwd: safeCwd,
-        stdio: ['ignore', 'pipe', 'pipe'] 
+        stdio: ['ignore', 'pipe', 'pipe']
       })
 
       child.stdout.on('data', (data) => {

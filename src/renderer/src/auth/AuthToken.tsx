@@ -9,7 +9,7 @@ export default function AuthInitializer() {
   useEffect(() => {
     const init = async () => {
       try {
-        const storedRefreshToken = localStorage.getItem('iris_cloud_token')
+        const storedRefreshToken = localStorage.getItem('nexa_cloud_token')
 
         if (!storedRefreshToken) {
           setAccessToken(null)
@@ -24,11 +24,11 @@ export default function AuthInitializer() {
         setAccessToken(accessToken)
 
         if (res.data.refreshToken) {
-          localStorage.setItem('iris_cloud_token', res.data.refreshToken)
+          localStorage.setItem('nexa_cloud_token', res.data.refreshToken)
         }
       } catch (err) {
         setAccessToken(null)
-        localStorage.removeItem('iris_cloud_token')
+        localStorage.removeItem('nexa_cloud_token')
       } finally {
         if (setIsAuthInitialized) setIsAuthInitialized(true)
       }

@@ -4,7 +4,7 @@ import { IpcMain, App } from 'electron'
 import { exec } from 'child_process'
 import { GoogleGenAI } from '@google/genai'
 
-export default function registerIrisCoder({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
+export default function registerNexaCoder({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
   const PROJECTS_DIR = path.resolve(app.getPath('userData'), 'Projects')
   if (!fs.existsSync(PROJECTS_DIR)) fs.mkdirSync(PROJECTS_DIR, { recursive: true })
 

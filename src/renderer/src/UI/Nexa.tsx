@@ -14,7 +14,7 @@ import {
   RiImageLine
 } from 'react-icons/ri'
 import { getSystemStatus } from '@renderer/services/system-info'
-import { getHistory } from '@renderer/services/iris-ai-brain'
+import { getHistory } from '@renderer/services/nexa-ai-brain'
 import ViewSkeleton from '@renderer/components/ViewSkelrton'
 
 import DashboardView from '../views/Dashboard'
@@ -27,7 +27,7 @@ const NotesView = lazy(() => import('../views/Notes'))
 const SettingsView = lazy(() => import('../views/Settings'))
 const GalleryView = lazy(() => import('../views/Gallery'))
 
-interface IrisProps {
+interface NexaProps {
   isSystemActive: boolean
   toggleSystem: () => void
   isMicMuted: boolean
@@ -41,7 +41,7 @@ interface IrisProps {
 
 const glassPanel = 'bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-2xl shadow-xl'
 
-const IRIS = (props: IrisProps) => {
+const Nexa = (props: NexaProps) => {
   const [activeTab, setActiveTab] = useState('DASHBOARD')
   const [stats, setStats] = useState<any>(null)
   const [time, setTime] = useState<Date>(new Date())
@@ -62,7 +62,7 @@ const IRIS = (props: IrisProps) => {
       if (Array.isArray(history)) setChatHistory(history.slice(-15))
     }
     fetchHistory()
-    const interval = setInterval(fetchHistory, 500)
+    const interval = setInterval(fetchHistory, 3000)
     return () => clearInterval(interval)
   }, [])
 
@@ -80,7 +80,7 @@ const IRIS = (props: IrisProps) => {
         <div className="hidden lg:flex items-center gap-3">
           <RiShieldFlashLine className="text-emerald-500 text-xl animate-pulse" />
           <div className="flex flex-col leading-none">
-            <span className="font-black tracking-[0.2em] text-sm text-zinc-100">IRIS AI</span>
+            <span className="font-black tracking-[0.2em] text-sm text-zinc-100">NEXA AI</span>
             <span className="text-[11px] font-mono text-emerald-500/60 tracking-widest">
               NEURAL INTERFACE
             </span>
@@ -206,4 +206,4 @@ const IRIS = (props: IrisProps) => {
   )
 }
 
-export default IRIS
+export default Nexa

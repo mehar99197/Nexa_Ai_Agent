@@ -34,15 +34,15 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const [activeTab, setActiveTab] = useState<TabType>('updates')
 
   const [voice, setVoice] = useState<'MALE' | 'FEMALE'>(
-    (localStorage.getItem('iris_voice_profile') as 'MALE' | 'FEMALE') || 'MALE'
+    (localStorage.getItem('nexa_voice_profile') as 'MALE' | 'FEMALE') || 'MALE'
   )
   const [personality, setPersonality] = useState('')
-  const [userName, setUserName] = useState(localStorage.getItem('iris_user_name') || '')
+  const [userName, setUserName] = useState(localStorage.getItem('nexa_user_name') || '')
 
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('iris_custom_api_key') || '')
-  const [groqKey, setGroqKey] = useState(localStorage.getItem('iris_groq_api_key') || '')
-  const [hfKey, setHfKey] = useState(localStorage.getItem('iris_hf_api_key') || '')
-  const [tailvyKey, setTailvyKey] = useState(localStorage.getItem('iris_tailvy_api_key') || '')
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('nexa_custom_api_key') || '')
+  const [groqKey, setGroqKey] = useState(localStorage.getItem('nexa_groq_api_key') || '')
+  const [hfKey, setHfKey] = useState(localStorage.getItem('nexa_hf_api_key') || '')
+  const [tailvyKey, setTailvyKey] = useState(localStorage.getItem('nexa_tailvy_api_key') || '')
 
   const [isSecurityUnlocked, setIsSecurityUnlocked] = useState(false)
   const [authPin, setAuthPin] = useState('')
@@ -70,7 +70,10 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
       })
       window.electron.ipcRenderer
         .invoke('check-vault-status')
-        .then((res) => setFaceCount(res?.faceCount || 0))
+        .then((res) => {
+          setFaceCount(res?.faceCount || 0)
+          if (!res?.hasPin) setIsSecurityUnlocked(true)
+        })
 
       window.electron.ipcRenderer.invoke('get-app-version').then((v) => setAppVersion(v))
 
@@ -109,7 +112,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const handleVoiceChange = (v: 'MALE' | 'FEMALE') => {
     if (isSystemActive) return
     setVoice(v)
-    localStorage.setItem('iris_voice_profile', v)
+    localStorage.setItem('nexa_voice_profile', v)
   }
 
   const handlePersonalityChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -129,15 +132,15 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   }
 
   const saveUserName = () => {
-    localStorage.setItem('iris_user_name', userName)
+    localStorage.setItem('nexa_user_name', userName)
     alert('User Designation Saved.')
   }
 
   const saveApiKeys = async () => {
-    localStorage.setItem('iris_custom_api_key', geminiKey)
-    localStorage.setItem('iris_groq_api_key', groqKey)
-    localStorage.setItem('iris_hf_api_key', hfKey)
-    localStorage.setItem('iris_tailvy_api_key', tailvyKey)
+    localStorage.setItem('nexa_custom_api_key', geminiKey)
+    localStorage.setItem('nexa_groq_api_key', groqKey)
+    localStorage.setItem('nexa_hf_api_key', hfKey)
+    localStorage.setItem('nexa_tailvy_api_key', tailvyKey)
 
     if (window.electron?.ipcRenderer) {
       try {
@@ -403,7 +406,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
                   <textarea
                     value={personality}
                     onChange={handlePersonalityChange}
-                    placeholder="Define who IRIS is. Example: 'You are a sassy, highly technical assistant...'"
+                    placeholder="Define who Nexa is. Example: 'You are a sassy, highly technical assistant...'"
                     className="bg-[#050505] border border-white/10 rounded-lg p-4 text-sm text-zinc-200 h-32 resize-none focus:border-white/30 outline-none transition-all scrollbar-small"
                   />
                 </div>
@@ -438,7 +441,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
                     </span>
                     {isSystemActive && (
                       <span className="text-[10px] text-red-400 font-mono tracking-widest flex items-center gap-1 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
-                        <RiLock2Line /> LOCKED AS IRIS IS CONNECTED
+                        <RiLock2Line /> LOCKED AS NEXA IS CONNECTED
                       </span>
                     )}
                   </div>
@@ -559,7 +562,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
                     <RiShieldKeyholeLine className="text-zinc-500 shrink-0 mt-0.5" size={16} />
                     <p className="text-[10px] text-zinc-400 font-mono leading-relaxed">
                       [SECURITY NOTICE]: All API keys are encrypted and stored strictly in your
-                      local OS. IRIS does not transmit these keys to any centralized server. You
+                      local OS. Nexa does not transmit these keys to any centralized server. You
                       maintain full ownership and billing control over your provider endpoints.
                     </p>
                   </div>
