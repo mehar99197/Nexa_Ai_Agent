@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactElement } from 'react'
 import {
   RiMicLine,
   RiMicOffLine,
@@ -31,30 +31,38 @@ const MiniOverlay = ({
   visionMode,
   startVision,
   stopVision
-}: OverlayProps) => {
+}: OverlayProps): ReactElement => {
   const [isTalking, setIsTalking] = useState(false)
   const analyzerRef = useRef<AnalyserNode | null>(null)
-  const dataArrayRef = useRef<Uint8Array | any | null>(null)
+  const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
 
   useEffect(() => {
+    let frameId: number | null = null
+
     if (isSystemActive && nexaService.analyser) {
       analyzerRef.current = nexaService.analyser
       dataArrayRef.current = new Uint8Array(nexaService.analyser.frequencyBinCount)
-      const checkAudio = () => {
+
+      const checkAudio = (): void => {
         if (analyzerRef.current && dataArrayRef.current) {
           analyzerRef.current.getByteFrequencyData(dataArrayRef.current)
           const avg = dataArrayRef.current.reduce((a, b) => a + b) / dataArrayRef.current.length
           setIsTalking(avg > 10)
         }
-        if (isSystemActive) requestAnimationFrame(checkAudio)
+        frameId = requestAnimationFrame(checkAudio)
       }
-      checkAudio()
-    } else {
-      setIsTalking(false)
+
+      frameId = requestAnimationFrame(checkAudio)
+    }
+
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId)
     }
   }, [isSystemActive])
 
-  const handleVisionClick = (mode: 'camera' | 'screen') => {
+  const effectiveIsTalking = isSystemActive && isTalking
+
+  const handleVisionClick = (mode: 'camera' | 'screen'): void => {
     if (isVideoOn && visionMode === mode) {
       stopVision()
     } else {
@@ -62,7 +70,7 @@ const MiniOverlay = ({
     }
   }
 
-  const expand = () => {
+  const expand = (): void => {
     window.electron.ipcRenderer.send('toggle-overlay')
   }
 
@@ -70,10 +78,10 @@ const MiniOverlay = ({
     <div className="w-full h-full flex items-center justify-between px-3 bg-zinc-950/90 backdrop-blur-xl rounded-full border border-emerald-500/30 drag-region overflow-hidden">
       <div className="flex items-center gap-3 no-drag">
         <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 ${isSystemActive ? (isTalking ? 'border-emerald-500 bg-emerald-500/20 shadow-[0_0_15px_#10b981]' : 'border-emerald-500/50 bg-emerald-900/20') : 'border-zinc-700 bg-zinc-900'}`}
+          className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 ${isSystemActive ? (effectiveIsTalking ? 'border-emerald-500 bg-emerald-500/20 shadow-[0_0_15px_#10b981]' : 'border-emerald-500/50 bg-emerald-900/20') : 'border-zinc-700 bg-zinc-900'}`}
         >
           <div
-            className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${isSystemActive ? (isTalking ? 'bg-emerald-400' : 'bg-emerald-600') : 'bg-red-900'}`}
+            className={`w-2.5 h-2.5 rounded-full transition-colors duration-300 ${isSystemActive ? (effectiveIsTalking ? 'bg-emerald-400' : 'bg-emerald-600') : 'bg-red-900'}`}
           />
         </div>
       </div>

@@ -1,45 +1,28 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { Handle, Position, useReactFlow } from 'reactflow'
-import {
-  RiTerminalBoxLine,
-  RiGlobalLine,
-  RiPhoneLine,
-  RiSettings4Line,
-  RiDeleteBinLine,
-  RiFlashlightLine,
-  RiEditBoxLine,
-  RiKeyboardLine,
-  RiVolumeUpLine,
-  RiMailLine,
-  RiServerLine
-} from 'react-icons/ri'
+import { RiDeleteBinLine, RiEditBoxLine } from 'react-icons/ri'
 import 'react-tooltip/dist/react-tooltip.css'
-import { ListStartIcon } from 'lucide-react'
+import { getIcon } from './tool-node-icons'
 
-export const getIcon = (name: string, size = 16) => {
-  if (name.includes('mobile') || name.includes('whatsapp'))
-    return <RiPhoneLine size={size} className="text-blue-400" />
-  if (name.includes('terminal') || name.includes('code') || name.includes('app'))
-    return <RiTerminalBoxLine size={size} className="text-emerald-400" />
-  if (name.includes('web') || name.includes('search') || name.includes('research'))
-    return <RiGlobalLine size={size} className="text-cyan-400" />
-  if (name.includes('type') || name.includes('shortcut') || name.includes('sequence'))
-    return <RiKeyboardLine size={size} className="text-yellow-400" />
-  if (name.includes('volume')) return <RiVolumeUpLine size={size} className="text-pink-400" />
-  if (name.includes('email')) return <RiMailLine size={size} className="text-orange-400" />
-  if (name.includes('wormhole')) return <RiServerLine size={size} className="text-purple-400" />
-
-  if (name === 'WAIT') return <RiFlashlightLine size={size} className="text-purple-400" />
-  if (name === 'TRIGGER') return <ListStartIcon size={size} className="text-red-400" />
-  return <RiSettings4Line size={size} className="text-zinc-400" />
+interface ToolNodeData {
+  tool: {
+    name: string
+  }
+  comment?: string
+  openParameterEditor: (nodeId: string) => void
 }
 
-export default function ToolNode({ data, id }: any) {
+interface ToolNodeProps {
+  data: ToolNodeData
+  id: string
+}
+
+export default function ToolNode({ data, id }: ToolNodeProps): ReactElement {
   const { tool, comment, openParameterEditor } = data
   const { setNodes, setEdges } = useReactFlow()
   const [isHovered, setIsHovered] = useState(false)
 
-  const deleteNode = () => {
+  const deleteNode = (): void => {
     setNodes((nodes) => nodes.filter((n) => n.id !== id))
     setEdges((edges) => edges.filter((e) => e.source !== id && e.target !== id))
   }

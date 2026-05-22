@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import {
   RiBrainLine,
   RiArrowDropDownLine,
@@ -9,29 +9,54 @@ import {
 } from 'react-icons/ri'
 
 interface MacroMenuProps {
-  loadMacroToCanvas: (macro: any) => void
+  loadMacroToCanvas: (macro: Workflow) => void
 }
 
-export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProps) {
-  const [workflows, setWorkflows] = useState<any[]>([])
+interface Workflow {
+  name: string
+  updatedAt: number
+  description?: string
+  nodes?: unknown[]
+  edges?: unknown[]
+}
+
+interface LoadWorkflowsResponse {
+  success: boolean
+  workflows?: Workflow[]
+}
+
+interface ActionButton {
+  label: string
+  icon: ReactNode
+  className?: string
+  action: () => void | Promise<void>
+}
+
+export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProps): ReactElement {
+  const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [isMainOpen, setIsMainOpen] = useState(false)
   const [activeWorkflowActions, setActiveWorkflowActions] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const loadWorkflowsList = async () => {
+  const loadWorkflowsList = async (): Promise<void> => {
     try {
-      const res = await (window as any).electron.ipcRenderer.invoke('load-workflows')
+      const res = (await window.electron.ipcRenderer.invoke(
+        'load-workflows'
+      )) as LoadWorkflowsResponse
       if (res.success) setWorkflows(res.workflows || [])
-    } catch (e) {
+    } catch {
+      return
     }
   }
 
-  useEffect(() => {
-    if (isMainOpen) loadWorkflowsList()
-  }, [isMainOpen])
+  const toggleMainMenu = (): void => {
+    const nextIsOpen = !isMainOpen
+    setIsMainOpen(nextIsOpen)
+    if (nextIsOpen) void loadWorkflowsList()
+  }
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent): void {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMainOpen(false)
         setActiveWorkflowActions(null)
@@ -39,26 +64,26 @@ export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProp
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [menuRef])
+  }, [])
 
-  const handleEdit = (macro: any) => {
+  const handleEdit = (macro: Workflow): void => {
     loadMacroToCanvas(macro)
     setIsMainOpen(false)
   }
 
-  const handleDelete = async (macroName: string) => {
+  const handleDelete = async (macroName: string): Promise<void> => {
     if (
       window.confirm(
         `Are you sure you want to purge macro "${macroName}" from the neural net? This cannot be undone.`
       )
     ) {
-      await (window as any).electron.ipcRenderer.invoke('delete-workflow', { name: macroName })
-      loadWorkflowsList()
+      await window.electron.ipcRenderer.invoke('delete-workflow', { name: macroName })
+      await loadWorkflowsList()
       setActiveWorkflowActions(null)
     }
   }
 
-  const handleDuplicate = async (macro: any) => {
+  const handleDuplicate = (macro: Workflow): void => {
     const newMacro = { ...macro, name: `${macro.name} Copy` }
     loadMacroToCanvas(newMacro)
     setIsMainOpen(false)
@@ -68,7 +93,7 @@ export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProp
   return (
     <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setIsMainOpen(!isMainOpen)}
+        onClick={toggleMainMenu}
         className={`flex items-center gap-3 px-4 py-2 bg-[#18181b] border rounded-lg text-sm text-zinc-300 font-medium transition-all cursor-pointer ${isMainOpen ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'border-[#27272a] hover:border-zinc-700'}`}
       >
         <RiBrainLine className="text-emerald-500" />
@@ -91,7 +116,7 @@ export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProp
             </p>
           )}
 
-          {workflows.map((macro: any) => (
+          {workflows.map((macro) => (
             <div key={macro.name} className="relative group">
               <button
                 onClick={() => handleEdit(macro)}
@@ -116,23 +141,27 @@ export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProp
 
               {activeWorkflowActions === macro.name && (
                 <div className="absolute top-8 right-2 w-32 bg-black border border-[#27272a] rounded-lg shadow-xl z-20 p-1 flex flex-col animate-in scale-95 fade-in duration-100">
-                  {[
-                    { label: 'Edit', icon: <RiEditBoxLine />, action: () => handleEdit(macro) },
-                    {
-                      label: 'Duplicate',
-                      icon: <RiFileCopyLine />,
-                      action: () => handleDuplicate(macro)
-                    },
-                    {
-                      label: 'Purge',
-                      icon: <RiDeleteBinLine />,
-                      className: 'text-red-400 hover:bg-red-950/40',
-                      action: () => handleDelete(macro.name)
-                    }
-                  ].map((btn) => (
+                  {(
+                    [
+                      { label: 'Edit', icon: <RiEditBoxLine />, action: () => handleEdit(macro) },
+                      {
+                        label: 'Duplicate',
+                        icon: <RiFileCopyLine />,
+                        action: () => handleDuplicate(macro)
+                      },
+                      {
+                        label: 'Purge',
+                        icon: <RiDeleteBinLine />,
+                        className: 'text-red-400 hover:bg-red-950/40',
+                        action: () => handleDelete(macro.name)
+                      }
+                    ] satisfies ActionButton[]
+                  ).map((btn) => (
                     <button
                       key={btn.label}
-                      onClick={btn.action}
+                      onClick={() => {
+                        void btn.action()
+                      }}
                       className={`flex items-center gap-2 p-2 rounded text-[10px] uppercase font-bold text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer ${btn.className}`}
                     >
                       {btn.icon} {btn.label}

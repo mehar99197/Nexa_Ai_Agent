@@ -17,6 +17,20 @@ export interface AppItem {
   id: string
 }
 
+export interface BatteryInfo {
+  percent: number
+  isCharging: boolean
+  hasBattery: boolean
+}
+
+export const getBatteryInfo = async (): Promise<BatteryInfo> => {
+  try {
+    return await window.electron.ipcRenderer.invoke('get-battery-info')
+  } catch {
+    return { percent: 100, isCharging: true, hasBattery: false }
+  }
+}
+
 export const getSystemStatus = async (): Promise<SystemStats | null> => {
   try {
     return await window.electron.ipcRenderer.invoke('get-system-stats')

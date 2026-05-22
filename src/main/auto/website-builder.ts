@@ -5,7 +5,7 @@ import { GoogleGenAI } from '@google/genai'
 
 let previewWin: BrowserWindow | null = null
 
-export default function registerWebsiteBuilder() {
+export default function registerWebsiteBuilder(): void {
   ipcMain.handle('build-animated-website', async (event, { prompt, geminiKey }) => {
     if (!event) return
     try {
@@ -77,8 +77,11 @@ CRITICAL RULES:
 OUTPUT ONLY RAW HTML.`
 
       const response = await ai.models.generateContentStream({
-        model: 'gemini-3-flash-preview',
-        contents: `${sysPrompt}\n\nUSER PROMPT: ${prompt}`
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: sysPrompt
+        }
       })
 
       let fullCode = ''
@@ -87,7 +90,7 @@ OUTPUT ONLY RAW HTML.`
         if (chunk.text) {
           fullCode += chunk.text
 
-          let cleanCode = fullCode.replace(/^```html\n?/, '').replace(/```$/, '')
+          const cleanCode = fullCode.replace(/^```html\n?/, '').replace(/```$/, '')
 
           const safeCode = encodeURIComponent(cleanCode)
           if (previewWin && !previewWin.isDestroyed()) {

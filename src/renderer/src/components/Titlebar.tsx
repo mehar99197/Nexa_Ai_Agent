@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, type ReactElement } from 'react'
 import {
   RiSubtractLine,
   RiCloseLine,
@@ -6,24 +6,29 @@ import {
   RiCheckboxMultipleBlankLine
 } from 'react-icons/ri'
 
-const TitleBar = () => {
+const getIsMac = (): boolean => {
+  if (window.electron && window.electron.process) {
+    return window.electron.process.platform === 'darwin'
+  }
+  return navigator.userAgent.toLowerCase().includes('mac')
+}
+
+const TitleBar = (): ReactElement => {
   const [isMaximized, setIsMaximized] = useState(false)
-  const [isMac, setIsMac] = useState(false)
+  const [isMac] = useState(getIsMac)
 
-  useEffect(() => {
-    if (window.electron && window.electron.process) {
-      setIsMac(window.electron.process.platform === 'darwin')
-    } else {
-      setIsMac(navigator.userAgent.toLowerCase().includes('mac'))
-    }
-  }, [])
+  const minimize = (): void => {
+    window.electron.ipcRenderer.send('window-min')
+  }
 
-  const minimize = () => window.electron.ipcRenderer.send('window-min')
-  const toggleMaximize = () => {
+  const toggleMaximize = (): void => {
     setIsMaximized(!isMaximized)
     window.electron.ipcRenderer.send('window-max')
   }
-  const close = () => window.electron.ipcRenderer.send('window-close')
+
+  const close = (): void => {
+    window.electron.ipcRenderer.send('window-close')
+  }
 
   return (
     <div className="w-full h-10 flex items-center justify-between px-4 bg-zinc-900 border-b border-zinc-800 drag-region select-none z-1000 relative">

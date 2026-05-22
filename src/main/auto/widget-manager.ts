@@ -4,7 +4,7 @@ import fs from 'fs/promises'
 
 let activeWidgets: BrowserWindow[] = []
 
-export default function registerWidgetMaker() {
+export default function registerWidgetMaker(): void {
   ipcMain.handle('create-widget', async (_, { htmlCode, width, height }) => {
     try {
       const widgetDir = path.join(app.getPath('userData'), 'DynamicWidgets')

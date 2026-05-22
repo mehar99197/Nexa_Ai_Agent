@@ -1,13 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactElement } from 'react'
 import { useAuthStore } from '../store/auth-store'
 import AxiosInstance from '../config/AxiosInstance'
 
-export default function AuthInitializer() {
+export default function AuthInitializer(): ReactElement | null {
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
-  const setIsAuthInitialized = useAuthStore((s: any) => s.setIsAuthInitialized)
+  const setIsAuthInitialized = useAuthStore((s) => s.setIsAuthInitialized)
 
   useEffect(() => {
-    const init = async () => {
+    const init = async (): Promise<void> => {
       try {
         const storedRefreshToken = localStorage.getItem('nexa_cloud_token')
 
@@ -26,7 +26,7 @@ export default function AuthInitializer() {
         if (res.data.refreshToken) {
           localStorage.setItem('nexa_cloud_token', res.data.refreshToken)
         }
-      } catch (err) {
+      } catch {
         setAccessToken(null)
         localStorage.removeItem('nexa_cloud_token')
       } finally {

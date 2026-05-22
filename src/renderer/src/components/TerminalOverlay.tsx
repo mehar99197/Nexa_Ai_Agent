@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 
-export default function TerminalOverlay() {
+export default function TerminalOverlay(): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -17,12 +17,11 @@ export default function TerminalOverlay() {
     const initTimer = setTimeout(() => {
       if (!containerRef.current) return
 
-
       const term = new Terminal({
         cursorBlink: true,
-        cursorStyle: 'block', 
+        cursorStyle: 'block',
         theme: {
-          background: '#050505', 
+          background: '#050505',
           foreground: '#00ff41',
           cursor: '#00ff41',
           selectionBackground: 'rgba(0, 255, 65, 0.3)',
@@ -50,7 +49,9 @@ export default function TerminalOverlay() {
 
       try {
         fitAddon.fit()
-      } catch (e) {}
+      } catch {
+        // Fit can fail while the terminal container is still settling.
+      }
 
       term.writeln('\x1b[32m╔════════════════════════════════════════╗\x1b[0m')
       term.writeln('\x1b[32m║  SYSTEM CORE: ONLINE                   ║\x1b[0m')
@@ -67,14 +68,16 @@ export default function TerminalOverlay() {
         requestAnimationFrame(() => {
           try {
             fitAddonRef.current?.fit()
-          } catch (e) {}
+          } catch {
+            // Ignore transient fit failures during terminal resize frames.
+          }
         })
       }
 
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       hideTimerRef.current = setTimeout(() => {
         setIsVisible(false)
-      }, 10000) 
+      }, 10000)
     })
 
     return () => {
@@ -122,7 +125,7 @@ export default function TerminalOverlay() {
           />
         </div>
 
-            <div className="h-1 w-full bg-linear-to-r from-green-500/0 via-green-500/30 to-green-500/0"></div>
+        <div className="h-1 w-full bg-linear-to-r from-green-500/0 via-green-500/30 to-green-500/0"></div>
       </div>
     </div>
   )

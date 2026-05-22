@@ -2,7 +2,7 @@ import { IpcMain, BrowserWindow } from 'electron'
 
 let hackerWindow: BrowserWindow | null = null
 
-export default function registerRealityHacker(ipcMain: IpcMain) {
+export default function registerRealityHacker(ipcMain: IpcMain): void {
   ipcMain.removeHandler('hack-website')
   ipcMain.handle('hack-website', async (_, { url, mode, customText }) => {
     try {
@@ -233,8 +233,9 @@ export default function registerRealityHacker(ipcMain: IpcMain) {
       }
 
       return { success: true }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
   })
 }

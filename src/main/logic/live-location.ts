@@ -1,7 +1,7 @@
 import { IpcMain } from 'electron'
 import { exec } from 'child_process'
 
-export default function registerLocationHandlers(ipcMain: IpcMain) {
+export default function registerLocationHandlers(ipcMain: IpcMain): void {
   ipcMain.removeHandler('get-live-location')
 
   const runPowerShell = (cmd: string): Promise<string> => {
@@ -17,7 +17,6 @@ export default function registerLocationHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle('get-live-location', async () => {
     try {
-
       const psCommand = `Add-Type -AssemblyName System.Device; $w = New-Object System.Device.Location.GeoCoordinateWatcher; $w.Start(); $t = 0; while($w.Position.Location.IsUnknown -and $t -lt 15) { Start-Sleep -Milliseconds 300; $t++ }; if(!$w.Position.Location.IsUnknown) { Write-Output "$($w.Position.Location.Latitude),$($w.Position.Location.Longitude)" }`
 
       const osLocation = await runPowerShell(psCommand)
@@ -41,8 +40,6 @@ export default function registerLocationHandlers(ipcMain: IpcMain) {
         }
       }
 
-      
-
       const ipRes = await fetch('http://ip-api.com/json/')
       const ipData = await ipRes.json()
 
@@ -59,7 +56,7 @@ export default function registerLocationHandlers(ipcMain: IpcMain) {
       }
 
       return null
-    } catch (error) {
+    } catch {
       return null
     }
   })

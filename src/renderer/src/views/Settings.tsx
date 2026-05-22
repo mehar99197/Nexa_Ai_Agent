@@ -551,7 +551,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
                           type="password"
                           value={tailvyKey}
                           onChange={(e) => setTailvyKey(e.target.value)}
-                          placeholder="tlv_..."
+                          placeholder="tvly-..."
                           className="bg-transparent border-none outline-none text-sm font-mono text-zinc-100 w-full placeholder:text-zinc-700"
                         />
                       </div>

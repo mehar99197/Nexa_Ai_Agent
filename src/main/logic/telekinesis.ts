@@ -1,7 +1,7 @@
 import { IpcMain, screen } from 'electron'
 import { windowManager } from 'node-window-manager'
 
-export default function registerTelekinesis({ ipcMain }: { ipcMain: IpcMain }) {
+export default function registerTelekinesis({ ipcMain }: { ipcMain: IpcMain }): void {
   ipcMain.handle('teleport-windows', async (_event, commands) => {
     try {
       windowManager.requestAccessibility()
@@ -24,7 +24,7 @@ export default function registerTelekinesis({ ipcMain }: { ipcMain: IpcMain }) {
         const targetWindow = validWindows[0]
 
         if (targetWindow) {
-          targetWindow.restore() 
+          targetWindow.restore()
           targetWindow.bringToTop()
 
           const halfW = Math.floor(width / 2)
@@ -53,7 +53,7 @@ export default function registerTelekinesis({ ipcMain }: { ipcMain: IpcMain }) {
               break
             case 'maximize':
               targetWindow.maximize()
-              continue 
+              continue
           }
 
           targetWindow.setBounds(newBounds)

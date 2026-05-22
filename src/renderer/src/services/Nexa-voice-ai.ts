@@ -1478,7 +1478,13 @@ ${JSON.stringify(history)}
                       } else if (step.tool === 'scroll_screen') {
                         await scrollScreen(step.args.direction, Number(step.args.amount))
                       } else if (step.tool === 'press_shortcut') {
-                        await pressShortcut(step.args.key, step.args.modifiers)
+                        const safeModifiers = Array.isArray(step.args.modifiers)
+                          ? step.args.modifiers
+                          : (step.args.modifiers || '')
+                              .split(',')
+                              .map((modifier) => modifier.trim())
+                              .filter(Boolean)
+                        await pressShortcut(step.args.key, safeModifiers)
                       } else if (step.tool === 'take_screenshot') {
                         await takeScreenshot()
                       }

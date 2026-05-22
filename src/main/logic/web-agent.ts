@@ -67,9 +67,9 @@ const getSmartUrl = (
   return null
 }
 
-export default function registerWebAgent(ipcMain: IpcMain) {
+export default function registerWebAgent(ipcMain: IpcMain): void {
   ipcMain.handle('google-search', async (_event, query: string) => {
-    let browser: any = null
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
 
     try {
       const smartRoute = getSmartUrl(query)
@@ -132,7 +132,7 @@ export default function registerWebAgent(ipcMain: IpcMain) {
       }
 
       return `I've opened the link. Here is a quick summary:\n${summary.substring(0, 500)}...`
-    } catch (error: any) {
+    } catch {
       if (browser) await browser.close()
       return "I opened the browser, but couldn't read the content."
     }

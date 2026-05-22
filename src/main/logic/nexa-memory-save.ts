@@ -2,7 +2,29 @@ import fs from 'fs'
 import path from 'path'
 import { IpcMain, App } from 'electron'
 
-export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
+type ChatMessage = {
+  role: string
+  content: string
+  timestamp: string
+}
+
+type StoredMessage = {
+  role?: string
+  content?: string
+}
+
+type HistoryEntry = {
+  role: string
+  parts: { text: string }[]
+}
+
+export default function registerIpcHandlers({
+  ipcMain,
+  app
+}: {
+  ipcMain: IpcMain
+  app: App
+}): void {
   const CHAT_DIR = path.resolve(app.getPath('userData'), 'Chat')
   const FILE_PATH = path.join(CHAT_DIR, 'nexa_memory.json')
 
@@ -13,13 +35,13 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
     try {
       if (!fs.existsSync(CHAT_DIR)) fs.mkdirSync(CHAT_DIR, { recursive: true })
 
-      let history: { role: string; content: string; timestamp: string }[] = []
+      let history: ChatMessage[] = []
       if (fs.existsSync(FILE_PATH)) {
         const data = fs.readFileSync(FILE_PATH, 'utf-8')
         history = data ? JSON.parse(data) : []
       }
 
-      const newEntry: { role: string; content: string; timestamp: string } = {
+      const newEntry: ChatMessage = {
         role: msg.role,
         content: msg.parts[0].text,
         timestamp: new Date().toISOString()
@@ -30,7 +52,7 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
 
       fs.writeFileSync(FILE_PATH, JSON.stringify(history, null, 2))
       return true
-    } catch (err) {
+    } catch (_error) {
       return false
     }
   })
@@ -39,21 +61,30 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
     try {
       if (fs.existsSync(FILE_PATH)) {
         const data = fs.readFileSync(FILE_PATH, 'utf-8')
-        const raw = JSON.parse(data)
+        const raw = JSON.parse(data) as StoredMessage[]
 
-        const filtered = raw.filter((m: any) => {
+        const filtered = raw.filter((m) => {
           const text: string = m.content || ''
           if (text.includes('[System Notice]') || text.includes('Context update only')) return false
-          if (/^context updated|^acknowledged|^noted|no reply necessary|no response necessary/i.test(text)) return false
+          if (
+            /^context updated|^acknowledged|^noted|no reply necessary|no response necessary/i.test(
+              text
+            )
+          )
+            return false
           return true
         })
 
-        return filtered.map((m: any) => ({
-          role: m.role === 'nexa' ? 'model' : m.role,
-          parts: [{ text: m.content }]
-        }))
+        return filtered.map(
+          (m): HistoryEntry => ({
+            role: m.role === 'nexa' ? 'model' : m.role || 'user',
+            parts: [{ text: m.content || '' }]
+          })
+        )
       }
-    } catch (err) {}
+    } catch (_error) {
+      void _error
+    }
     return []
   })
 }

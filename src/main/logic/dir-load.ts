@@ -3,7 +3,9 @@ import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
 
-const getFileType = (name: string, isDirectory: boolean) => {
+type AppPathName = Parameters<typeof app.getPath>[0]
+
+const getFileType = (name: string, isDirectory: boolean): string => {
   if (isDirectory) return 'directory'
 
   const ext = path.extname(name).toLowerCase()
@@ -40,10 +42,11 @@ const getFileType = (name: string, isDirectory: boolean) => {
   return 'unknown'
 }
 
-const getSystemPath = (name: any) => {
+const getSystemPath = (name: string): string => {
   try {
-    return app.getPath(name)
-  } catch (e) {
+    const appPathName = name as AppPathName
+    return app.getPath(appPathName)
+  } catch {
     const home = os.homedir()
     switch (name) {
       case 'desktop':
@@ -64,18 +67,17 @@ const getSystemPath = (name: any) => {
   }
 }
 
-export default function registerDirLoader(ipcMain: IpcMain) {
+export default function registerDirLoader(ipcMain: IpcMain): void {
   ipcMain.handle('read-directory', async (_event, dirPath: string) => {
     try {
-      let rawInput = dirPath.trim()
+      const rawInput = dirPath.trim()
       let targetPath = rawInput
       const platform = os.platform()
 
       if (platform === 'win32' && /^[a-zA-Z]:?$/.test(rawInput)) {
         const driveLetter = rawInput.charAt(0).toUpperCase()
         targetPath = `${driveLetter}:\\`
-      }
-      else if (
+      } else if (
         ['desktop', 'documents', 'downloads', 'music', 'pictures', 'videos'].includes(
           rawInput.toLowerCase()
         )
@@ -83,18 +85,16 @@ export default function registerDirLoader(ipcMain: IpcMain) {
         targetPath = getSystemPath(rawInput.toLowerCase())
       } else if (rawInput.toLowerCase() === 'home' || rawInput === '~') {
         targetPath = os.homedir()
-      }
-      else if (!path.isAbsolute(targetPath)) {
+      } else if (!path.isAbsolute(targetPath)) {
         targetPath = path.join(os.homedir(), rawInput)
       }
-
 
       try {
         const stats = await fs.stat(targetPath)
         if (!stats.isDirectory()) {
           return `Error: '${targetPath}' is a FILE. Use 'read_file' to read it.`
         }
-      } catch (e) {
+      } catch {
         return `Error: Directory not found at '${targetPath}'.`
       }
 
@@ -124,7 +124,7 @@ export default function registerDirLoader(ipcMain: IpcMain) {
         .sort((a, b) => {
           if (a.isDirectory && !b.isDirectory) return -1
           if (!a.isDirectory && b.isDirectory) return 1
-          return b.mtime - a.mtime 
+          return b.mtime - a.mtime
         })
         .slice(0, 150)
 

@@ -1,10 +1,9 @@
 import './assets/main.css'
 
-import React, { JSX, StrictMode, useEffect, useState, useCallback } from 'react'
+import React, { JSX, StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 
-import LockScreen from './UI/LockScreen'
 import LoginPage from './auth/Login'
 import { useAuthStore } from './store/auth-store'
 import AuthInitializer from './auth/AuthToken'
@@ -46,25 +45,6 @@ const PublicRoute = ({ children }: { children: JSX.Element }) => {
 
 const AppRouter = () => {
   const navigate = useNavigate()
-  const [isUnlocked, setIsUnlocked] = useState(false)
-
-  const handleUnlock = useCallback(() => {
-    setIsUnlocked(true)
-    navigate('/')
-  }, [navigate])
-
-  const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-    if (!isUnlocked) return <Navigate to="/lock" replace />
-    return children
-  }
-
-  // Lock the app when Electron window is hidden / system sleeps
-  useEffect(() => {
-    if (!electronAPI) return
-    const handleLock = () => setIsUnlocked(false)
-    electronAPI.on('lock-screen', handleLock)
-    return () => electronAPI?.removeListener('lock-screen', handleLock)
-  }, [])
 
   useEffect(() => {
     if (electronAPI) {
@@ -99,21 +79,7 @@ const AppRouter = () => {
         }
       />
 
-      <Route
-        path="/lock"
-        element={
-          <LockScreen onUnlock={handleUnlock} />
-        }
-      />
-
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <IndexRoot />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={<IndexRoot />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

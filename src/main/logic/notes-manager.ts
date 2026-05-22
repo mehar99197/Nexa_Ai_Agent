@@ -2,7 +2,7 @@ import { IpcMain, app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-export default function registerNotesHandlers(ipcMain: IpcMain) {
+export default function registerNotesHandlers(ipcMain: IpcMain): void {
   const NOTES_DIR = path.resolve(app.getPath('userData'), 'Notes')
 
   if (!fs.existsSync(NOTES_DIR)) {
@@ -19,8 +19,9 @@ export default function registerNotesHandlers(ipcMain: IpcMain) {
 
       fs.writeFileSync(filePath, fileContent, 'utf-8')
       return { success: true, path: filePath }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
   })
 
@@ -42,8 +43,8 @@ export default function registerNotesHandlers(ipcMain: IpcMain) {
             path: filePath
           }
         })
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) 
-    } catch (error) {
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    } catch (_error) {
       return []
     }
   })
@@ -56,7 +57,7 @@ export default function registerNotesHandlers(ipcMain: IpcMain) {
         return true
       }
       return false
-    } catch (e) {
+    } catch (_error) {
       return false
     }
   })

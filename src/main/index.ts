@@ -100,9 +100,10 @@ function createWindow(): void {
     if (mainWindow) mainWindow.show()
   })
 
-  mainWindow.on('blur', () => {
-    mainWindow?.webContents.send('lock-screen')
-  })
+  // Auto-lock on blur disabled — vault bypass enabled
+  // mainWindow.on('blur', () => {
+  //   mainWindow?.webContents.send('lock-screen')
+  // })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -127,9 +128,7 @@ function createWindow(): void {
   }
 }
 
-app.on('second-instance', (event, commandLine) => {
-  if (!event) {
-  }
+app.on('second-instance', (_event, commandLine) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
@@ -140,7 +139,7 @@ app.on('second-instance', (event, commandLine) => {
   }
 })
 
-function toggleOverlayMode() {
+function toggleOverlayMode(): void {
   if (!mainWindow) return
 
   const primaryDisplay = screen.getPrimaryDisplay()
@@ -264,8 +263,8 @@ app.whenReady().then(() => {
 
       fs.writeFileSync(secureConfigPath, JSON.stringify(secureData))
       return { success: true }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
 
@@ -284,7 +283,7 @@ app.whenReady().then(() => {
       }
 
       return { groqKey, geminiKey }
-    } catch (err) {
+    } catch {
       return null
     }
   })

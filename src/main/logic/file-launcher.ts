@@ -10,8 +10,7 @@ const runCommand = (cmd: string): Promise<string> => {
   })
 }
 
-export default function registerFileScanner(ipcMain: IpcMain) {
-
+export default function registerFileScanner(ipcMain: IpcMain): void {
   ipcMain.removeHandler('get-running-apps')
 
   ipcMain.handle('get-running-apps', async () => {
@@ -32,8 +31,8 @@ export default function registerFileScanner(ipcMain: IpcMain) {
         return output.split(', ').map((s) => s.trim())
       }
 
-      return [] 
-    } catch (e) {
+      return []
+    } catch {
       return []
     }
   })

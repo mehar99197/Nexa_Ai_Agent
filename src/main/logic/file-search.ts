@@ -4,13 +4,39 @@ import path from 'path'
 import os from 'os'
 import Groq from 'groq-sdk'
 
-let pipeline: any = null
-let lancedb: any = null
+type AppPathName = Parameters<typeof app.getPath>[0]
+type FeatureExtractor = (
+  input: string,
+  options: { pooling: 'mean'; normalize: boolean }
+) => Promise<{ data: ArrayLike<number> }>
+type PipelineFactory = (task: 'feature-extraction', model: string) => Promise<FeatureExtractor>
+type SearchResult = { file_path: string }
+type SemanticRecord = {
+  vector: number[]
+  file_path: string
+  file_name: string
+  content_snippet: string
+}
+type LanceTable = {
+  add: (records: SemanticRecord[]) => Promise<void>
+  search: (vector: number[]) => {
+    limit: (count: number) => { execute: () => Promise<SearchResult[]> }
+  }
+}
+type LanceDatabase = {
+  openTable: (name: string) => Promise<LanceTable>
+  createTable: (name: string, records: SemanticRecord[]) => Promise<void>
+}
+type LanceDbModule = { connect: (dbPath: string) => Promise<LanceDatabase> }
 
-const getSystemPath = (name: string) => {
+let pipeline: PipelineFactory | null = null
+let lancedb: LanceDbModule | null = null
+
+const getSystemPath = (name: string): string => {
   try {
-    return app.getPath(name as any)
-  } catch (e) {
+    const appPathName = name as AppPathName
+    return app.getPath(appPathName)
+  } catch {
     const home = os.homedir()
     switch (name.toLowerCase()) {
       case 'desktop':
@@ -60,7 +86,7 @@ const IGNORE_FOLDERS = new Set([
   '$recycle.bin'
 ])
 
-export default function registerFileSearch(ipcMain: IpcMain) {
+export default function registerFileSearch(ipcMain: IpcMain): void {
   ipcMain.handle('index-folder', async (event, folderPath: string) => {
     try {
       event.sender.send('semantic-progress', {
@@ -68,13 +94,17 @@ export default function registerFileSearch(ipcMain: IpcMain) {
         text: 'Initializing Neural Engine...',
         progress: 10
       })
-      if (!pipeline) pipeline = (await import('@xenova/transformers')).pipeline
-      if (!lancedb) lancedb = await import('vectordb')
+      const pipelineFactory =
+        pipeline ??
+        ((await import('@xenova/transformers')) as { pipeline: PipelineFactory }).pipeline
+      pipeline = pipelineFactory
+      const lanceModule = lancedb ?? ((await import('vectordb')) as unknown as LanceDbModule)
+      lancedb = lanceModule
 
       const dbPath = path.join(app.getPath('userData'), 'nexa_semantic_db')
-      const db = await lancedb.connect(dbPath)
+      const db = await lanceModule.connect(dbPath)
 
-      const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+      const extractor = await pipelineFactory('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
 
       event.sender.send('semantic-progress', {
         status: 'scanning',
@@ -96,11 +126,11 @@ export default function registerFileSearch(ipcMain: IpcMain) {
         '.css'
       ])
 
-      async function scanForIndexing(dir: string) {
+      async function scanForIndexing(dir: string): Promise<void> {
         let entries
         try {
           entries = await fs.promises.readdir(dir, { withFileTypes: true })
-        } catch (err) {
+        } catch {
           return
         }
 
@@ -124,7 +154,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
 
       await scanForIndexing(path.resolve(folderPath))
 
-      const records: any[] = []
+      const records: SemanticRecord[] = []
       let processed = 0
 
       for (const file of filesToIndex) {
@@ -148,7 +178,9 @@ export default function registerFileSearch(ipcMain: IpcMain) {
             file_name: path.basename(file),
             content_snippet: textChunk.substring(0, 200)
           })
-        } catch (e) {}
+        } catch (_error) {
+          void _error
+        }
       }
 
       event.sender.send('semantic-progress', {
@@ -184,31 +216,37 @@ export default function registerFileSearch(ipcMain: IpcMain) {
 
       let semanticResultsText = ''
       let nativeResultsText = ''
-      let searchParams = { keywords: [] as string[], root_target: '' }
+      const searchParams = { keywords: [] as string[], root_target: '' }
 
-      const runSemantic = async () => {
+      const runSemantic = async (): Promise<void> => {
         try {
-          if (!pipeline) pipeline = (await import('@xenova/transformers')).pipeline
-          if (!lancedb) lancedb = await import('vectordb')
+          const pipelineFactory =
+            pipeline ??
+            ((await import('@xenova/transformers')) as { pipeline: PipelineFactory }).pipeline
+          pipeline = pipelineFactory
+          const lanceModule = lancedb ?? ((await import('vectordb')) as unknown as LanceDbModule)
+          lancedb = lanceModule
           const dbPath = path.join(app.getPath('userData'), 'nexa_semantic_db')
           if (!fs.existsSync(dbPath)) return
 
-          const db = await lancedb.connect(dbPath)
+          const db = await lanceModule.connect(dbPath)
           const table = await db.openTable('files')
-          const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+          const extractor = await pipelineFactory('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
           const queryOutput = await extractor(query, { pooling: 'mean', normalize: true })
           const results = await table.search(Array.from(queryOutput.data)).limit(3).execute()
 
           if (results.length > 0) {
             semanticResultsText =
               `🧠 CONTENT MEMORY MATCHES:\n` +
-              results.map((r: any) => `- ${r.file_path}`).join('\n') +
+              results.map((result) => `- ${result.file_path}`).join('\n') +
               '\n\n'
           }
-        } catch (e) {}
+        } catch (_error) {
+          void _error
+        }
       }
 
-      const runNativeCrawler = async () => {
+      const runNativeCrawler = async (): Promise<void> => {
         const groq = new Groq({ apiKey: groqKey })
 
         const prompt = `
@@ -235,7 +273,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
           if (Array.isArray(parsed.keywords)) searchParams.keywords = parsed.keywords
           else if (typeof parsed.keywords === 'string')
             searchParams.keywords = parsed.keywords.split(/[\s,]+/)
-        } catch (e) {
+        } catch {
           searchParams.keywords = []
         }
 
@@ -251,7 +289,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
         })
 
         const searchRoots = new Set<string>()
-        let rawInput = searchParams.root_target.trim().toLowerCase()
+        const rawInput = searchParams.root_target.trim().toLowerCase()
 
         if (rawInput) {
           if (os.platform() === 'win32' && (rawInput.length === 1 || rawInput.includes('drive'))) {
@@ -292,7 +330,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
           let entries
           try {
             entries = await fs.promises.readdir(currentDir, { withFileTypes: true })
-          } catch (err) {
+          } catch {
             continue
           }
 
@@ -310,7 +348,7 @@ export default function registerFileSearch(ipcMain: IpcMain) {
                 const stat = await fs.promises.stat(fullPath)
                 isDir = stat.isDirectory()
                 isFile = stat.isFile()
-              } catch (e) {
+              } catch {
                 continue
               }
             }

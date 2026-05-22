@@ -1,9 +1,8 @@
 import { shell } from 'electron'
 
-export default function registerFileOpen(ipcMain: Electron.IpcMain) {
+export default function registerFileOpen(ipcMain: Electron.IpcMain): void {
   ipcMain.handle('file:open', async (_, filePath: string) => {
     try {
-
       const error = await shell.openPath(filePath)
 
       if (error) {
@@ -11,7 +10,7 @@ export default function registerFileOpen(ipcMain: Electron.IpcMain) {
       }
 
       return { success: true }
-    } catch (e) {
+    } catch {
       return { success: false, error: 'Internal System Error' }
     }
   })
@@ -20,7 +19,7 @@ export default function registerFileOpen(ipcMain: Electron.IpcMain) {
     try {
       shell.showItemInFolder(filePath)
       return { success: true }
-    } catch (e) {
+    } catch {
       return { success: false, error: 'Failed to reveal item' }
     }
   })

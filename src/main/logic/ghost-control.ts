@@ -101,7 +101,7 @@ function generateHumanPath(start: Point, end: Point): Point[] {
   return pathArray
 }
 
-export default function registerGhostControl(ipcMain: IpcMain) {
+export default function registerGhostControl(ipcMain: IpcMain): void {
   ipcMain.handle('copy-file-to-clipboard', async (_event, filePath: string) => {
     return new Promise((resolve) => {
       let cmd: string
@@ -121,10 +121,10 @@ export default function registerGhostControl(ipcMain: IpcMain) {
     })
   })
 
-  ipcMain.handle('ghost-sequence', async (_event, actions: any[]) => {
+  ipcMain.handle('ghost-sequence', async (_event, actions: unknown[]) => {
     try {
       for (const action of actions) {
-        if (action.type === 'paste') {
+        if (isGhostPasteAction(action)) {
           clipboard.writeText(action.text)
           await new Promise((r) => setTimeout(r, 200))
           if (isMac) {
@@ -134,17 +134,17 @@ export default function registerGhostControl(ipcMain: IpcMain) {
             await keyboard.pressKey(Key.LeftControl, Key.V)
             await keyboard.releaseKey(Key.V, Key.LeftControl)
           }
-        } else if (action.type === 'wait') {
-          await new Promise((r) => setTimeout(r, action.ms || 500))
-        } else if (action.type === 'type') {
+        } else if (isGhostWaitAction(action)) {
+          await new Promise((r) => setTimeout(r, action.ms))
+        } else if (isGhostTypeAction(action)) {
           await keyboard.type(action.text)
-        } else if (action.type === 'press') {
+        } else if (isGhostPressAction(action)) {
           const k = KEY_MAP[action.key.toLowerCase()]
           if (k !== undefined) {
             if (action.modifiers) {
               const mods = action.modifiers
-                .map((m: any) => KEY_MAP[m.toLowerCase()])
-                .filter(Boolean)
+                .map((mod) => KEY_MAP[mod.toLowerCase()])
+                .filter((value): value is Key => Boolean(value))
               for (const mod of mods) await keyboard.pressKey(mod)
               await keyboard.pressKey(k)
               await keyboard.releaseKey(k)
@@ -154,12 +154,12 @@ export default function registerGhostControl(ipcMain: IpcMain) {
               await keyboard.releaseKey(k)
             }
           }
-        } else if (action.type === 'click') {
+        } else if (isGhostClickAction(action)) {
           await mouse.leftClick()
         }
       }
       return true
-    } catch (e) {
+    } catch (_error) {
       return false
     }
   })
@@ -182,7 +182,7 @@ export default function registerGhostControl(ipcMain: IpcMain) {
       else await mouse.leftClick()
 
       return true
-    } catch (e) {
+    } catch (_error) {
       return false
     }
   })
@@ -193,7 +193,7 @@ export default function registerGhostControl(ipcMain: IpcMain) {
       if (direction === 'up') await mouse.scrollUp(scrollAmount)
       else await mouse.scrollDown(scrollAmount)
       return true
-    } catch (e) {
+    } catch (_error) {
       return false
     }
   })
@@ -226,7 +226,7 @@ export default function registerGhostControl(ipcMain: IpcMain) {
         await loudness.setVolume(level)
         return `Volume ${level}%`
       }
-    } catch (e) {
+    } catch (_error) {
       return 'Error'
     }
   })
@@ -238,8 +238,38 @@ export default function registerGhostControl(ipcMain: IpcMain) {
       await screenshot({ filename: savePath })
       shell.showItemInFolder(savePath)
       return `Screenshot saved.`
-    } catch (e) {
+    } catch (_error) {
       return 'Error'
     }
   })
 }
+
+type GhostActionBase = { type: string }
+type GhostPasteAction = GhostActionBase & { type: 'paste'; text: string }
+type GhostWaitAction = GhostActionBase & { type: 'wait'; ms?: number }
+type GhostTypeAction = GhostActionBase & { type: 'type'; text: string }
+type GhostPressAction = GhostActionBase & { type: 'press'; key: string; modifiers?: string[] }
+type GhostClickAction = GhostActionBase & { type: 'click' }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object')
+
+const isGhostPasteAction = (value: unknown): value is GhostPasteAction =>
+  isRecord(value) && value.type === 'paste' && typeof value.text === 'string'
+
+const isGhostWaitAction = (value: unknown): value is GhostWaitAction =>
+  isRecord(value) &&
+  value.type === 'wait' &&
+  (typeof value.ms === 'number' || value.ms === undefined)
+
+const isGhostTypeAction = (value: unknown): value is GhostTypeAction =>
+  isRecord(value) && value.type === 'type' && typeof value.text === 'string'
+
+const isGhostPressAction = (value: unknown): value is GhostPressAction =>
+  isRecord(value) &&
+  value.type === 'press' &&
+  typeof value.key === 'string' &&
+  (value.modifiers === undefined || Array.isArray(value.modifiers))
+
+const isGhostClickAction = (value: unknown): value is GhostClickAction =>
+  isRecord(value) && value.type === 'click'

@@ -10,7 +10,8 @@ import ReactFlow, {
 import { Tooltip } from 'react-tooltip'
 import 'reactflow/dist/style.css'
 import 'react-tooltip/dist/react-tooltip.css'
-import ToolNode, { getIcon } from '../components/ToolNode'
+import ToolNode from '../components/ToolNode'
+import { getIcon } from '../components/tool-node-icons'
 import ParameterEditorDrawer from '../components/ParameterEditorDrawer'
 import MacroManagementMenu from '../components/MacroManagementMenu'
 import {

@@ -2,7 +2,13 @@ import fs from 'fs'
 import path from 'path'
 import { IpcMain, App } from 'electron'
 
-export default function registerPermanentMemory({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
+export default function registerPermanentMemory({
+  ipcMain,
+  app
+}: {
+  ipcMain: IpcMain
+  app: App
+}): void {
   const MEMORY_DIR = path.resolve(app.getPath('userData'), 'Memory')
   const FILE_PATH = path.join(MEMORY_DIR, 'saved-user-memory.json')
 
@@ -24,7 +30,7 @@ export default function registerPermanentMemory({ ipcMain, app }: { ipcMain: Ipc
 
       fs.writeFileSync(FILE_PATH, JSON.stringify(memoryBank, null, 2))
       return true
-    } catch (err) {
+    } catch (_error) {
       return false
     }
   })
@@ -36,7 +42,7 @@ export default function registerPermanentMemory({ ipcMain, app }: { ipcMain: Ipc
         return data ? JSON.parse(data) : []
       }
       return []
-    } catch (err) {
+    } catch (_error) {
       return []
     }
   })

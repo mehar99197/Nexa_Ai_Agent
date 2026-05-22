@@ -1,7 +1,7 @@
 import { IpcMain } from 'electron'
 import fs from 'fs/promises'
 
-export default function registerFileRead(ipcMain: IpcMain) {
+export default function registerFileRead(ipcMain: IpcMain): void {
   ipcMain.handle('read-file', async (_event, filePath) => {
     try {
       const content = await fs.readFile(filePath, 'utf-8')

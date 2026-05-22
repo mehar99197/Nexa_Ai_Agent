@@ -6,21 +6,33 @@ import path from 'path'
 
 const execAsync = util.promisify(exec)
 
-let activeDevice: { ip: string; port: string } | any | null = null
+type DeviceHistoryEntry = {
+  ip: string
+  port: string
+  model: string
+  lastConnected: string
+}
 
-export default function registerAdbHandlers(ipcMain: IpcMain) {
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+let activeDevice: { ip: string; port: string } | null = null
+
+export default function registerAdbHandlers(ipcMain: IpcMain): void {
   const dirPath = path.join(app.getPath('userData'), 'Connected Devices')
   const historyPath = path.join(dirPath, 'Connect-mobile.json')
 
-  const saveDeviceToHistory = async (ip: string, port: string, model: string) => {
+  const saveDeviceToHistory = async (ip: string, port: string, model: string): Promise<void> => {
     try {
       await fs.mkdir(dirPath, { recursive: true })
 
-      let history: any[] = []
+      let history: DeviceHistoryEntry[] = []
       try {
         const file = await fs.readFile(historyPath, 'utf-8')
         history = JSON.parse(file)
-      } catch (e) {}
+      } catch (_error) {
+        void _error
+      }
 
       const existingIndex = history.findIndex((d) => d.ip === ip)
       const deviceData = { ip, port, model, lastConnected: new Date().toISOString() }
@@ -31,7 +43,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         history.push(deviceData)
       }
       await fs.writeFile(historyPath, JSON.stringify(history, null, 2))
-    } catch (e) {
+    } catch (_error) {
+      void _error
     }
   }
 
@@ -40,7 +53,7 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
     try {
       const file = await fs.readFile(historyPath, 'utf-8')
       return JSON.parse(file)
-    } catch (e) {
+    } catch (_error) {
       return []
     }
   })
@@ -61,13 +74,15 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
             `adb -s ${ip}:${port} shell getprop ro.product.model`
           )
           await saveDeviceToHistory(ip, port, modelOut.trim().toUpperCase() || 'UNKNOWN DEVICE')
-        } catch (e) {}
+        } catch (_error) {
+          void _error
+        }
 
         return { success: true }
       }
       return { success: false, error: stdout }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -78,17 +93,18 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       await execAsync(`adb disconnect ${activeDevice.ip}:${activeDevice.port}`)
       activeDevice = null
       return { success: true }
-    } catch (e: any) {
+    } catch (_error) {
       return { success: false }
     }
   })
 
   ipcMain.removeHandler('adb-screenshot')
   ipcMain.handle('adb-screenshot', async () => {
-    if (!activeDevice) return { success: false }
+    const device = activeDevice
+    if (!device) return { success: false }
     return new Promise((resolve) => {
       exec(
-        `adb -s ${activeDevice.ip}:${activeDevice.port} exec-out screencap -p`,
+        `adb -s ${device.ip}:${device.port} exec-out screencap -p`,
         { encoding: 'buffer', maxBuffer: 1024 * 1024 * 20 },
         (error, stdout) => {
           if (error) {
@@ -117,8 +133,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         await execAsync(`adb ${target} shell input keyevent KEYCODE_HOME`)
       }
       return { success: true }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -163,8 +179,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
           storage: { used: storageUsed, total: storageTotal, percent: storagePercent }
         }
       }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -178,7 +194,7 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       const { stdout: modelOut } = await execAsync(`adb ${target} shell getprop ro.product.model`)
 
       return `I am currently linked to your ${modelOut.trim()}. The battery is at ${level}%.`
-    } catch (e) {
+    } catch (_error) {
       return 'I am connected, but I could not retrieve the telemetry data.'
     }
   })
@@ -199,8 +215,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         `adb ${target} shell monkey -p ${packageName} -c android.intent.category.LAUNCHER 1`
       )
       return { success: true }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -218,8 +234,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
 
       await execAsync(`adb ${target} shell am force-stop ${packageName}`)
       return { success: true }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -243,8 +259,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         return { success: true }
       }
       return { success: false, error: 'Could not calculate screen size.' }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -278,8 +294,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         return { success: true }
       }
       return { success: false, error: 'Invalid direction.' }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -321,8 +337,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       }
 
       return { success: true, data: notifications }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -333,8 +349,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       const target = `-s ${activeDevice.ip}:${activeDevice.port}`
       await execAsync(`adb ${target} push "${sourcePath}" "${destPath}"`)
       return { success: true }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -348,8 +364,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
 
       await execAsync(`adb ${target} pull "${sourcePath}" "${finalDest}"`)
       return { success: true, savedTo: finalDest }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 
@@ -365,7 +381,7 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       if (cleanSetting === 'bluetooth' || cleanSetting === 'bt') {
         try {
           await execAsync(`adb ${target} shell svc bluetooth ${action}`, { timeout: 5000 })
-        } catch (e) {
+        } catch (_error) {
           await execAsync(`adb ${target} shell cmd bluetooth_manager ${action}`, { timeout: 5000 })
         }
         return { success: true }
@@ -374,7 +390,7 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       if (cleanSetting === 'wifi') {
         try {
           await execAsync(`adb ${target} shell svc wifi ${action}`, { timeout: 5000 })
-        } catch (e) {
+        } catch (_error) {
           const wifiState = state ? 'enabled' : 'disabled'
           await execAsync(`adb ${target} shell cmd wifi set-wifi-enabled ${wifiState}`, {
             timeout: 5000
@@ -416,8 +432,8 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
       }
 
       return { success: false, error: `I don't know how to toggle: ${setting}` }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error) }
     }
   })
 }

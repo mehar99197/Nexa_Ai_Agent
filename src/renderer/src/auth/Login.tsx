@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, type ReactElement } from 'react'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import {
   Cpu,
   ShieldCheck,
@@ -12,11 +12,11 @@ import {
 } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 
-export default function LoginPage() {
+export default function LoginPage(): ReactElement {
   const [bootLogs, setBootLogs] = useState<string[]>([])
   const [isReady, setIsReady] = useState(false)
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = (): void => {
     window.open(`${import.meta.env.VITE_BACKEND_KEY}/users/google`, '_blank')
   }
 
@@ -45,7 +45,7 @@ export default function LoginPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -53,7 +53,7 @@ export default function LoginPage() {
     }
   }
 
-  const cardVariants: any = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, scale: 0.95 },
     show: {
       opacity: 1,
@@ -62,12 +62,12 @@ export default function LoginPage() {
     }
   }
 
-  const panelVariants: any = {
+  const panelVariants: Variants = {
     hidden: { opacity: 0, x: -20 },
     show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } }
   }
 
-  const rightPanelVariants: any = {
+  const rightPanelVariants: Variants = {
     hidden: { opacity: 0, x: 20 },
     show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 200, damping: 20 } }
   }

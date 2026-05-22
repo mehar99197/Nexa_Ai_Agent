@@ -2,9 +2,8 @@ import { IpcMain, BrowserWindow } from 'electron'
 import { spawn } from 'child_process'
 import path from 'path'
 
-export default function registerSystemControl(ipcMain: IpcMain) {
-
-  const sanitizePath = (inputPath: string) => {
+export default function registerSystemControl(ipcMain: IpcMain): void {
+  const sanitizePath = (inputPath: string): string => {
     let clean = path.normalize(inputPath)
     if (clean.endsWith(path.sep)) clean = clean.slice(0, -1)
     return clean

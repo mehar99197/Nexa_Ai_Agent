@@ -6,7 +6,8 @@ import {
   globalShortcut,
   desktopCapturer,
   nativeImage,
-  safeStorage
+  safeStorage,
+  clipboard
 } from 'electron'
 import path from 'path'
 import fs from 'fs/promises'
@@ -14,8 +15,8 @@ import fsSync from 'fs'
 
 import clipboardy from 'clipboardy'
 import Prism from 'prismjs'
+import loadLanguages from 'prismjs/components/index.js'
 
-const loadLanguages = require('prismjs/components/')
 loadLanguages([
   'javascript',
   'typescript',
@@ -31,17 +32,20 @@ loadLanguages([
 
 let peelerWindow: BrowserWindow | null = null
 
-async function executeClipboardyWrite(text: string) {
-  const clipWrite = clipboardy.write || (clipboardy as any).default?.write
+async function executeClipboardyWrite(text: string): Promise<void> {
+  const clipWrite =
+    clipboardy.write ||
+    (clipboardy as unknown as { default?: { write?: (value: string) => Promise<void> } }).default
+      ?.write
   if (clipWrite) {
     await clipWrite(text)
   } else {
-    require('electron').clipboard.writeText(text)
+    clipboard.writeText(text)
   }
 }
 
-export default function registerScreenPeeler() {
-  const triggerPeeler = async () => {
+export default function registerScreenPeeler(): void {
+  const triggerPeeler = async (): Promise<void> => {
     if (peelerWindow) return
 
     try {
@@ -148,7 +152,8 @@ export default function registerScreenPeeler() {
         peelerWindow = null
         fs.unlink(filePath).catch(() => {})
       })
-    } catch (error) {
+    } catch (_error) {
+      void _error
     }
   }
 
@@ -162,7 +167,7 @@ export default function registerScreenPeeler() {
   ipcMain.on('copy-extracted-image', (event, base64DataUrl) => {
     if (!event) return
     const image = nativeImage.createFromDataURL(base64DataUrl)
-    require('electron').clipboard.writeImage(image)
+    clipboard.writeImage(image)
   })
 
   ipcMain.on('peeler-result', async (event, coordinates) => {
@@ -378,7 +383,8 @@ export default function registerScreenPeeler() {
             } else {
               apiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
             }
-          } catch (e) {
+          } catch (_error) {
+            void _error
           }
         }
 
@@ -419,7 +425,7 @@ export default function registerScreenPeeler() {
             )
             detectedLanguage = (parsed.language || 'javascript').toLowerCase()
             extractedCode = parsed.code || ''
-          } catch (e) {
+          } catch (_error) {
             extractedCode = aiResponse
           }
         } else {
@@ -433,11 +439,11 @@ export default function registerScreenPeeler() {
 
         const escapedRaw = extractedCode
           .replace(/\\/g, '\\\\')
-          .replace(/\`/g, '\\`')
+          .replace(/`/g, '\\`')
           .replace(/\$/g, '\\$')
         const escapedHTML = highlightedHTML
           .replace(/\\/g, '\\\\')
-          .replace(/\`/g, '\\`')
+          .replace(/`/g, '\\`')
           .replace(/\$/g, '\\$')
 
         if (resultWindow && !resultWindow.isDestroyed()) {
@@ -445,14 +451,16 @@ export default function registerScreenPeeler() {
             `window.injectResult(\`${escapedRaw}\`, \`${escapedHTML}\`);`
           )
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (resultWindow && !resultWindow.isDestroyed()) {
+          const message = error instanceof Error ? error.message : String(error)
           resultWindow.webContents.executeJavaScript(
-            `window.injectError('${error.message || 'Engine Failure'}');`
+            `window.injectError('${message || 'Engine Failure'}');`
           )
         }
       }
-    } catch (error) {
+    } catch (_error) {
+      void _error
     }
   })
 }

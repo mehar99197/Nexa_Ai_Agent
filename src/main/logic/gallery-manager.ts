@@ -1,9 +1,9 @@
-import { IpcMain, app, shell } from 'electron'
+import { IpcMain, app, shell, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
-export default function registerGalleryHandlers(ipcMain: IpcMain) {
+export default function registerGalleryHandlers(ipcMain: IpcMain): void {
   const GALLERY_DIR = path.resolve(app.getPath('userData'), 'Gallery')
 
   if (!fs.existsSync(GALLERY_DIR)) {
@@ -27,16 +27,14 @@ export default function registerGalleryHandlers(ipcMain: IpcMain) {
 
           return {
             filename: file,
-            displayName: file
-              .replace(/_\d+_Generated_by_Nexa\.png$/, '')
-              .replace(/_/g, ' '), 
+            displayName: file.replace(/_\d+_Generated_by_Nexa\.png$/, '').replace(/_/g, ' '),
             path: filePath,
             url: fileUrl,
             createdAt: stats.birthtime
           }
         })
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    } catch (error) {
+    } catch {
       return []
     }
   })
@@ -58,8 +56,9 @@ export default function registerGalleryHandlers(ipcMain: IpcMain) {
       fs.writeFileSync(filePath, buffer)
 
       return { success: true, path: filePath }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
   })
 
@@ -71,7 +70,7 @@ export default function registerGalleryHandlers(ipcMain: IpcMain) {
         return true
       }
       return false
-    } catch (e) {
+    } catch {
       return false
     }
   })
@@ -82,9 +81,6 @@ export default function registerGalleryHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle('save-image-external', async (_event, sourcePath) => {
     try {
-      const { dialog } = require('electron')
-      const fs = require('fs')
-
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Image Copy',
         defaultPath: path.basename(sourcePath),
@@ -96,8 +92,9 @@ export default function registerGalleryHandlers(ipcMain: IpcMain) {
         return { success: true }
       }
       return { canceled: true }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
   })
 }

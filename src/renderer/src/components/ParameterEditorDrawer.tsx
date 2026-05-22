@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type ReactElement } from 'react'
 import {
   RiCloseLine,
   RiSave3Line,
@@ -13,7 +13,49 @@ import {
 } from 'react-icons/ri'
 import { getAllApps, AppItem } from '@renderer/services/system-info'
 
-const SmartIcon = ({ name, size = 16 }: { name: string; size?: number }) => {
+type NodeInputs = Record<string, string>
+
+interface ToolParameter {
+  type?: string
+  description?: string
+  enum?: string[]
+}
+
+interface WorkflowTool {
+  name: string
+  description?: string
+  parameters?: {
+    properties?: Record<string, ToolParameter>
+  }
+}
+
+interface WorkflowNodeData {
+  tool?: WorkflowTool
+  inputs?: NodeInputs
+  comment?: string
+}
+
+interface WorkflowNode {
+  id: string
+  data: WorkflowNodeData
+}
+
+interface EditableWorkflowNode extends WorkflowNode {
+  data: WorkflowNodeData & {
+    tool: WorkflowTool
+  }
+}
+
+interface ParameterEditorDrawerProps {
+  nodeData?: WorkflowNode | null
+  updateNodeInputs: (nodeId: string, updatedInputs: NodeInputs, updatedComment: string) => void
+  closeEditor: () => void
+}
+
+const hasEditableTool = (nodeData?: WorkflowNode | null): nodeData is EditableWorkflowNode =>
+  Boolean(nodeData?.data?.tool)
+
+const SmartIcon = ({ name, size = 16 }: { name: string; size?: number }): ReactElement => {
   if (!name) return <div className={`w-8 h-8 bg-zinc-800 rounded-md border border-white/5`} />
 
   const lower = name.toLowerCase()
@@ -56,7 +98,13 @@ const SmartIcon = ({ name, size = 16 }: { name: string; size?: number }) => {
   )
 }
 
-const AppSelector = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+const AppSelector = ({
+  value,
+  onChange
+}: {
+  value: string
+  onChange: (val: string) => void
+}): ReactElement => {
   const [allApps, setAllApps] = useState<AppItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedTerm, setDebouncedTerm] = useState('')
@@ -76,7 +124,7 @@ const AppSelector = ({ value, onChange }: { value: string; onChange: (val: strin
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedTerm(searchTerm)
-      setPage(1) 
+      setPage(1)
     }, 300)
     return () => clearTimeout(timer)
   }, [searchTerm])
@@ -95,7 +143,7 @@ const AppSelector = ({ value, onChange }: { value: string; onChange: (val: strin
 
   const observer = useRef<IntersectionObserver | null>(null)
   const lastElementRef = useCallback(
-    (node: HTMLDivElement) => {
+    (node: HTMLDivElement | null): void => {
       if (loading) return
       if (observer.current) observer.current.disconnect()
 
@@ -174,25 +222,26 @@ const AppSelector = ({ value, onChange }: { value: string; onChange: (val: strin
   )
 }
 
-export default function ParameterEditorDrawer({ nodeData, updateNodeInputs, closeEditor }: any) {
-  const tool = nodeData?.data?.tool
-  const [localInputs, setLocalInputs] = useState<any>({})
-  const [localComment, setLocalComment] = useState('')
+interface ParameterEditorContentProps {
+  nodeData: EditableWorkflowNode
+  updateNodeInputs: (nodeId: string, updatedInputs: NodeInputs, updatedComment: string) => void
+  closeEditor: () => void
+}
 
-  useEffect(() => {
-    if (nodeData) {
-      setLocalInputs(nodeData.data.inputs || {})
-      setLocalComment(nodeData.data.comment || '')
-    }
-  }, [nodeData])
+function ParameterEditorContent({
+  nodeData,
+  updateNodeInputs,
+  closeEditor
+}: ParameterEditorContentProps): ReactElement {
+  const tool = nodeData.data.tool
+  const [localInputs, setLocalInputs] = useState<NodeInputs>(() => nodeData.data.inputs || {})
+  const [localComment, setLocalComment] = useState(() => nodeData.data.comment || '')
 
-  if (!nodeData || !tool) return null
-
-  const handleInputChange = (key: string, value: string) => {
-    setLocalInputs((prev: any) => ({ ...prev, [key]: value }))
+  const handleInputChange = (key: string, value: string): void => {
+    setLocalInputs((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleSave = () => {
+  const handleSave = (): void => {
     updateNodeInputs(nodeData.id, localInputs, localComment)
     closeEditor()
   }
@@ -240,7 +289,7 @@ export default function ParameterEditorDrawer({ nodeData, updateNodeInputs, clos
           </h4>
 
           {tool.parameters?.properties && Object.keys(tool.parameters.properties).length > 0 ? (
-            Object.entries(tool.parameters.properties).map(([key, prop]: any) => (
+            Object.entries(tool.parameters.properties).map(([key, prop]) => (
               <div key={key} className="flex flex-col gap-2 w-full">
                 <label className="text-[10px] text-zinc-400 uppercase tracking-widest">
                   {key.replace(/_/g, ' ')}
@@ -292,5 +341,22 @@ export default function ParameterEditorDrawer({ nodeData, updateNodeInputs, clos
         </button>
       </div>
     </div>
+  )
+}
+
+export default function ParameterEditorDrawer({
+  nodeData,
+  updateNodeInputs,
+  closeEditor
+}: ParameterEditorDrawerProps): ReactElement | null {
+  if (!hasEditableTool(nodeData)) return null
+
+  return (
+    <ParameterEditorContent
+      key={nodeData.id}
+      nodeData={nodeData}
+      updateNodeInputs={updateNodeInputs}
+      closeEditor={closeEditor}
+    />
   )
 }

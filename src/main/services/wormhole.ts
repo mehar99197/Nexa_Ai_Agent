@@ -1,9 +1,9 @@
 import { IpcMain } from 'electron'
 import { startTunnel } from 'untun'
 
-let activeTunnel: any = null
+let activeTunnel: NonNullable<Awaited<ReturnType<typeof startTunnel>>> | null = null
 
-export default function registerWormhole({ ipcMain }: { ipcMain: IpcMain }) {
+export default function registerWormhole({ ipcMain }: { ipcMain: IpcMain }): void {
   ipcMain.handle('open-wormhole', async (_event, port: number) => {
     try {
       if (activeTunnel) {
@@ -11,12 +11,17 @@ export default function registerWormhole({ ipcMain }: { ipcMain: IpcMain }) {
         activeTunnel = null
       }
 
-      activeTunnel = await startTunnel({
+      const tunnel = await startTunnel({
         port,
         acceptCloudflareNotice: true
       })
 
-      const tunnelUrl = await activeTunnel.getURL()
+      if (!tunnel) {
+        throw new Error('Failed to open wormhole tunnel.')
+      }
+
+      activeTunnel = tunnel
+      const tunnelUrl = await tunnel.getURL()
 
       return {
         success: true,

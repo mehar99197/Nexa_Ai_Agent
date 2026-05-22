@@ -5,24 +5,31 @@ import crypto from 'crypto'
 import { GoogleGenAI } from '@google/genai'
 import Groq from 'groq-sdk'
 
-const getStateDir = () => path.join(app.getPath('userData'), 'nexa_scan_states')
+type VectorRecord = { filePath: string; chunk: string; embedding: number[] }
+
+interface EmbedContentResponse {
+  embeddings: { values: number[] }[]
+}
+
+const getStateDir = (): string => path.join(app.getPath('userData'), 'nexa_scan_states')
 
 interface ScanState {
   dirPath: string
   processedFiles: string[]
-  vectorDB: { filePath: string; chunk: string; embedding: number[] }[]
+  vectorDB: VectorRecord[]
 }
 
-const getStateFilePath = (dirPath: string) => {
+const getStateFilePath = (dirPath: string): string => {
   const hash = crypto.createHash('md5').update(path.normalize(dirPath)).digest('hex')
   return path.join(getStateDir(), `${hash}.json`)
 }
 
-const saveState = async (state: ScanState) => {
+const saveState = async (state: ScanState): Promise<void> => {
   try {
     await fs.mkdir(getStateDir(), { recursive: true })
     await fs.writeFile(getStateFilePath(state.dirPath), JSON.stringify(state, null, 2))
-  } catch (e) {
+  } catch {
+    return
   }
 }
 
@@ -36,11 +43,11 @@ const loadState = async (dirPath: string): Promise<ScanState | null> => {
   }
 }
 
-let vectorDB: { filePath: string; chunk: string; embedding: number[] }[] = []
+let vectorDB: VectorRecord[] = []
 let processedFiles = new Set<string>()
 let isCancelled = false
 
-const cosineSimilarity = (vecA: number[], vecB: number[]) => {
+const cosineSimilarity = (vecA: number[], vecB: number[]): number => {
   let dot = 0,
     normA = 0,
     normB = 0
@@ -52,9 +59,9 @@ const cosineSimilarity = (vecA: number[], vecB: number[]) => {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB))
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }) {
+export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }): void {
   ipcMain.handle('cancel-ingestion', () => {
     isCancelled = true
     return { success: true }
@@ -88,9 +95,9 @@ export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }) {
         'tsconfig.json'
       ]
       const allowedExts = ['.js', '.ts', '.jsx', '.tsx', '.py', '.md']
-      let allFiles: string[] = []
+      const allFiles: string[] = []
 
-      async function fastScan(currentPath: string) {
+      async function fastScan(currentPath: string): Promise<void> {
         if (isCancelled) return
         let entries
         try {
@@ -164,12 +171,12 @@ export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }) {
         }
 
         try {
-          const response: any = await ai.models.embedContent({
+          const response = (await ai.models.embedContent({
             model: 'gemini-embedding-001',
             contents: validChunks.map((chunk) => `File: ${fileName}\n\n${chunk}`),
             config: { taskType: 'RETRIEVAL_DOCUMENT' }
-          })
-          response.embeddings.forEach((emb: any, idx: number) => {
+          })) as EmbedContentResponse
+          response.embeddings.forEach((emb, idx) => {
             vectorDB.push({ filePath: fullPath, chunk: validChunks[idx], embedding: emb.values })
           })
 
@@ -188,7 +195,7 @@ export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }) {
             chunks: vectorDB.length
           })
           await sleep(3500)
-        } catch (apiError) {
+        } catch (_apiError) {
           await sleep(5000)
         }
       }
@@ -211,11 +218,11 @@ export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }) {
       const ai = new GoogleGenAI({ apiKey: geminiKey })
       const groq = new Groq({ apiKey: groqKey })
 
-      const queryResponse: any = await ai.models.embedContent({
+      const queryResponse = (await ai.models.embedContent({
         model: 'gemini-embedding-001',
         contents: query,
         config: { taskType: 'RETRIEVAL_QUERY' }
-      })
+      })) as EmbedContentResponse
       const queryEmbedding = queryResponse.embeddings[0].values
 
       const rankedChunks = vectorDB

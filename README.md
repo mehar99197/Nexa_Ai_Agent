@@ -40,8 +40,6 @@
 - [🧠 Roadmap](#-roadmap)
 - [⚠️ Disclaimer](#️-disclaimer)
 - [👨‍💻 Architect](#-architect)
-- [📜 License](#-license)
-
 ---
 
 # ⚡ Overview
@@ -386,10 +384,6 @@ Use responsibly. The maintainers are not liable for misuse.
 
 **NexaCode Solutions**  
 AI Systems Engineering and Project Leadership
-
----
-
-# 📜 License
 
 ---
 

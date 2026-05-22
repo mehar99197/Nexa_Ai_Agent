@@ -2,10 +2,10 @@ import { ipcMain } from 'electron'
 import Store from 'electron-store'
 import bcrypt from 'bcryptjs'
 
-const StoreClass = (Store as any).default || Store
+const StoreClass = (Store as unknown as { default?: typeof Store }).default ?? Store
 const store = new StoreClass()
 
-export default function registerSecurityVault() {
+export default function registerSecurityVault(): void {
   const legacyFace = store.get('nexa_vault_face') as number[] | undefined
   if (legacyFace && !store.get('nexa_vault_faces')) {
     store.set('nexa_vault_faces', [legacyFace])

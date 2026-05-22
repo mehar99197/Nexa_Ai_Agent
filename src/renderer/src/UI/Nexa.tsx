@@ -13,7 +13,7 @@ import {
   RiCloseLine,
   RiImageLine
 } from 'react-icons/ri'
-import { getSystemStatus } from '@renderer/services/system-info'
+import { getSystemStatus, getBatteryInfo } from '@renderer/services/system-info'
 import { getHistory } from '@renderer/services/nexa-ai-brain'
 import ViewSkeleton from '@renderer/components/ViewSkelrton'
 
@@ -47,6 +47,14 @@ const Nexa = (props: NexaProps) => {
   const [time, setTime] = useState<Date>(new Date())
   const [chatHistory, setChatHistory] = useState<any[]>([])
   const [showSourceModal, setShowSourceModal] = useState(false)
+  const [battery, setBattery] = useState({ percent: 100, isCharging: false, hasBattery: false })
+
+  useEffect(() => {
+    const fetchBattery = () => getBatteryInfo().then(setBattery)
+    fetchBattery()
+    const interval = setInterval(fetchBattery, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -116,7 +124,7 @@ const Nexa = (props: NexaProps) => {
             <RiWifiLine /> <span>LINKED</span>
           </div>
           <div className="hidden sm:flex items-center gap-2">
-            <RiBatteryChargeLine /> <span>100%</span>
+            <RiBatteryChargeLine /> <span>{battery.percent}%</span>
           </div>
           <div className="bg-zinc-800 px-2 py-1 rounded text-zinc-300">
             {time.toLocaleTimeString()}

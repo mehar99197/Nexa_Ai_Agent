@@ -28,7 +28,7 @@ function generateHumanPath(start: Point, end: Point): Point[] {
   return pathArray
 }
 
-export default function registerDropZoneControl(ipcMain: IpcMain) {
+export default function registerDropZoneControl(ipcMain: IpcMain): void {
   ipcMain.handle('ghost-drag-and-drop', async (_event, { startX, startY, endX, endY }) => {
     try {
       const primaryDisplay = screen.getPrimaryDisplay()
@@ -43,12 +43,12 @@ export default function registerDropZoneControl(ipcMain: IpcMain) {
       await new Promise((r) => setTimeout(r, 200))
       await mouse.pressButton(Button.LEFT)
       await new Promise((r) => setTimeout(r, 100))
-      await mouse.move(pathPoints) 
+      await mouse.move(pathPoints)
       await new Promise((r) => setTimeout(r, 100))
       await mouse.releaseButton(Button.LEFT)
 
       return true
-    } catch (e) {
+    } catch {
       return false
     }
   })
@@ -62,8 +62,9 @@ export default function registerDropZoneControl(ipcMain: IpcMain) {
 
       await fs.rename(sourcePath, destPath)
       return { success: true, destPath }
-    } catch (e: any) {
-      return { success: false, error: e.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
   })
 

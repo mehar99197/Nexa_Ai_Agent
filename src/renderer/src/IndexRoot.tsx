@@ -135,7 +135,7 @@ const IndexRoot = () => {
       startAIProcessing()
 
       stream.getVideoTracks()[0].onended = () => stopVision()
-    } catch (e) {
+    } catch (_e) {
       stopVision()
     }
   }

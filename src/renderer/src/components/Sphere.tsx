@@ -1,26 +1,42 @@
+/* eslint-disable react/no-unknown-property */
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, type ReactElement } from 'react'
 import * as THREE from 'three'
 import { nexaService } from '@renderer/services/Nexa-voice-ai'
 
-const CustomParticleSphere = ({ count = 3000 }) => {
+interface CustomParticleSphereProps {
+  count?: number
+}
+
+interface ParticleData {
+  positions: Float32Array
+  originalPositions: Float32Array
+  spreadFactors: Float32Array
+}
+
+const seededRandom = (seed: number): number => {
+  const value = Math.sin(seed) * 10000
+  return value - Math.floor(value)
+}
+
+const CustomParticleSphere = ({ count = 3000 }: CustomParticleSphereProps): ReactElement => {
   const mesh = useRef<THREE.Points>(null)
 
-  const dataArray = useMemo(() => new Uint8Array(128), [])
+  const dataArray = useMemo<Uint8Array<ArrayBuffer>>(() => new Uint8Array(128), [])
 
   const colorStart = useMemo(() => new THREE.Color('#33db12'), [])
   const colorEnd = useMemo(() => new THREE.Color('#FFFFFF'), [])
   const colorTarget = useMemo(() => new THREE.Color(), [])
 
-  const { positions, originalPositions, spreadFactors } = useMemo(() => {
+  const { positions, originalPositions, spreadFactors } = useMemo<ParticleData>(() => {
     const pos = new Float32Array(count * 3)
     const orig = new Float32Array(count * 3)
     const spread = new Float32Array(count)
 
     for (let i = 0; i < count; i++) {
-      const x = Math.random() * 2 - 1
-      const y = Math.random() * 2 - 1
-      const z = Math.random() * 2 - 1
+      const x = seededRandom(i * 3 + 1) * 2 - 1
+      const y = seededRandom(i * 3 + 2) * 2 - 1
+      const z = seededRandom(i * 3 + 3) * 2 - 1
 
       const vector = new THREE.Vector3(x, y, z)
       vector.normalize().multiplyScalar(2)
@@ -33,7 +49,7 @@ const CustomParticleSphere = ({ count = 3000 }) => {
       orig[i * 3 + 1] = vector.y
       orig[i * 3 + 2] = vector.z
 
-      spread[i] = Math.random()
+      spread[i] = seededRandom(i + 1000)
     }
     return { positions: pos, originalPositions: orig, spreadFactors: spread }
   }, [count])
@@ -94,7 +110,7 @@ const CustomParticleSphere = ({ count = 3000 }) => {
   )
 }
 
-const Sphere = () => {
+const Sphere = (): ReactElement => {
   return (
     <Canvas
       camera={{ position: [0, 0, 4.5] }}

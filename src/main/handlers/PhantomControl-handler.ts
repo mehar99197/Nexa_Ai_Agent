@@ -14,10 +14,10 @@ import fsSync from 'fs'
 
 let phantomWindow: BrowserWindow | null = null
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-export default function registerPhantomKeyboard() {
-  const summonPhantom = async () => {
+export default function registerPhantomKeyboard(): void {
+  const summonPhantom = async (): Promise<void> => {
     if (phantomWindow) return
 
     try {
@@ -183,7 +183,8 @@ export default function registerPhantomKeyboard() {
         phantomWindow = null
         fs.unlink(filePath).catch(() => {})
       })
-    } catch (error) {
+    } catch (_error) {
+      void _error
     }
   }
 
@@ -195,6 +196,7 @@ export default function registerPhantomKeyboard() {
 
   ipcMain.on('phantom-resize', (event, height) => {
     if (!event) {
+      return
     }
     if (phantomWindow) {
       const bounds = phantomWindow.getBounds()
@@ -216,7 +218,8 @@ export default function registerPhantomKeyboard() {
           } else {
             apiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
           }
-        } catch (e) {
+        } catch (_error) {
+          void _error
         }
       }
 
@@ -280,12 +283,12 @@ export default function registerPhantomKeyboard() {
                   phantomWindow.webContents.send('phantom-stream-chunk', textChunk)
                 }
               }
-            } catch (e) {
+            } catch (_error) {
+              void _error
             }
           }
         }
       }
-
 
       await sleep(400)
       if (phantomWindow) phantomWindow.close()

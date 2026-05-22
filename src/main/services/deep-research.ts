@@ -2,7 +2,9 @@ import { IpcMain } from 'electron'
 import { tavily } from '@tavily/core'
 import Groq from 'groq-sdk'
 
-export default function registerDeepResearch({ ipcMain }: { ipcMain: IpcMain }) {
+type TavilyResult = { url: string; content: string }
+
+export default function registerDeepResearch({ ipcMain }: { ipcMain: IpcMain }): void {
   ipcMain.handle('execute-deep-research', async (event, { query, tavilyKey, groqKey }) => {
     try {
       if (!tavilyKey || !groqKey) {
@@ -21,8 +23,8 @@ export default function registerDeepResearch({ ipcMain }: { ipcMain: IpcMain }) 
         includeAnswer: true,
         maxResults: 5
       })
-      const rawContext = tavilyData.results
-        .map((r: any) => `Source: ${r.url}\nContent: ${r.content}`)
+      const rawContext = (tavilyData.results as TavilyResult[])
+        .map((result) => `Source: ${result.url}\nContent: ${result.content}`)
         .join('\n\n')
 
       event.sender.send('oracle-progress', {

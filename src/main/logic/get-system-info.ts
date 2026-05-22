@@ -7,6 +7,7 @@ const runCommand = (cmd: string): Promise<string> => {
   return new Promise((resolve) => {
     exec(cmd, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout) => {
       if (error) {
+        void error
       }
       resolve(stdout ? stdout.trim() : '')
     })
@@ -22,7 +23,9 @@ function getOSName(): string {
       const release = fs.readFileSync('/etc/os-release', 'utf8')
       const nameMatch = release.match(/^PRETTY_NAME="?([^"\n]+)"?/m)
       if (nameMatch) return nameMatch[1]
-    } catch {}
+    } catch (_error) {
+      void _error
+    }
     return 'Linux'
   }
   return platform
@@ -32,7 +35,7 @@ const isLinux = os.platform() === 'linux'
 
 let cpuLastSnapshot = os.cpus()
 
-function getSystemCpuUsage() {
+function getSystemCpuUsage(): string {
   const cpus = os.cpus()
   let idle = 0
   let total = 0
@@ -57,7 +60,10 @@ function getLinuxTemperature(): number {
     for (const zone of zones) {
       const type = fs.readFileSync(`/sys/class/thermal/${zone}/type`, 'utf8').trim()
       const temp = parseInt(fs.readFileSync(`/sys/class/thermal/${zone}/temp`, 'utf8').trim(), 10)
-      if (!isNaN(temp) && (type.includes('cpu') || type.includes('x86') || type.includes('coretemp'))) {
+      if (
+        !isNaN(temp) &&
+        (type.includes('cpu') || type.includes('x86') || type.includes('coretemp'))
+      ) {
         return Math.round(temp / 1000)
       }
     }
@@ -66,7 +72,9 @@ function getLinuxTemperature(): number {
       const temp = parseInt(fs.readFileSync(`/sys/class/thermal/${zone}/temp`, 'utf8').trim(), 10)
       if (!isNaN(temp)) return Math.round(temp / 1000)
     }
-  } catch {}
+  } catch (_error) {
+    void _error
+  }
   return 0
 }
 
@@ -101,9 +109,13 @@ async function getLinuxInstalledApps(): Promise<{ name: string; id: string }[]> 
               apps.push({ name, id })
             }
           }
-        } catch {}
+        } catch (_error) {
+          void _error
+        }
       }
-    } catch {}
+    } catch (_error) {
+      void _error
+    }
   }
 
   return apps.sort((a, b) => a.name.localeCompare(b.name))
@@ -112,7 +124,9 @@ async function getLinuxInstalledApps(): Promise<{ name: string; id: string }[]> 
 async function getLinuxDrives(): Promise<{ name: string; FreeGB: number; TotalGB: number }[]> {
   const drives: { name: string; FreeGB: number; TotalGB: number }[] = []
   try {
-    const output = await runCommand('df -B1 --output=target,avail,size -x tmpfs -x devtmpfs -x squashfs 2>/dev/null')
+    const output = await runCommand(
+      'df -B1 --output=target,avail,size -x tmpfs -x devtmpfs -x squashfs 2>/dev/null'
+    )
     const lines = output.split('\n').slice(1) // skip header
     for (const line of lines) {
       const parts = line.trim().split(/\s+/)
@@ -129,12 +143,18 @@ async function getLinuxDrives(): Promise<{ name: string; FreeGB: number; TotalGB
         }
       }
     }
-  } catch {}
+  } catch (_error) {
+    void _error
+  }
   return drives
 }
 
-export default function registerSystemHandlers(ipcMain: IpcMain) {
+type WindowsAppEntry = { Name?: string; AppID?: string }
 
+const isWindowsAppEntry = (value: unknown): value is WindowsAppEntry =>
+  Boolean(value && typeof value === 'object')
+
+export default function registerSystemHandlers(ipcMain: IpcMain): void {
   ipcMain.removeHandler('get-installed-apps')
   ipcMain.handle('get-installed-apps', async () => {
     try {
@@ -144,7 +164,7 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
         const cmd = `powershell "Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Depth 1"`
         const jsonOutput = await runCommand(cmd)
         if (!jsonOutput) return []
-        let rawData
+        let rawData: unknown
         try {
           rawData = JSON.parse(jsonOutput)
         } catch {
@@ -152,9 +172,10 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
         }
         const appsArray = Array.isArray(rawData) ? rawData : [rawData]
         return appsArray
-          .filter((a: any) => a && a.Name && a.AppID)
-          .map((a: any) => ({ name: a.Name.trim(), id: a.AppID.trim() }))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name))
+          .filter(isWindowsAppEntry)
+          .filter((app) => Boolean(app.Name && app.AppID))
+          .map((app) => ({ name: String(app.Name).trim(), id: String(app.AppID).trim() }))
+          .sort((a, b) => a.name.localeCompare(b.name))
       }
 
       if (platform === 'linux') {
@@ -162,7 +183,7 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
       }
 
       return []
-    } catch (e) {
+    } catch (_error) {
       return []
     }
   })
@@ -186,6 +207,57 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
     }
   })
 
+  ipcMain.removeHandler('get-battery-info')
+  ipcMain.handle('get-battery-info', async () => {
+    try {
+      if (isLinux) {
+        // Try sysfs first
+        const powerDir = '/sys/class/power_supply'
+        try {
+          const supplies = fs.readdirSync(powerDir)
+          const batDir = supplies.find((d) => d.startsWith('BAT'))
+          if (batDir) {
+            const basePath = `${powerDir}/${batDir}`
+            const capacity = parseInt(fs.readFileSync(`${basePath}/capacity`, 'utf8').trim(), 10)
+            const status = fs.readFileSync(`${basePath}/status`, 'utf8').trim()
+            if (!isNaN(capacity)) {
+              return {
+                percent: capacity,
+                isCharging: status === 'Charging' || status === 'Full',
+                hasBattery: true
+              }
+            }
+          }
+        } catch (_error) {
+          void _error
+        }
+
+        // Fallback: acpi command
+        try {
+          const acpiOut = await runCommand('acpi -b 2>/dev/null')
+          if (acpiOut && acpiOut.includes('Battery')) {
+            const percentMatch = acpiOut.match(/(\d+)%/)
+            const isCharging = acpiOut.includes('Charging') || acpiOut.includes('Full')
+            if (percentMatch) {
+              return {
+                percent: parseInt(percentMatch[1], 10),
+                isCharging,
+                hasBattery: true
+              }
+            }
+          }
+        } catch (_error) {
+          void _error
+        }
+      }
+
+      // No battery found (desktop) or unsupported platform
+      return { percent: 100, isCharging: true, hasBattery: false }
+    } catch {
+      return { percent: 100, isCharging: true, hasBattery: false }
+    }
+  })
+
   ipcMain.removeHandler('get-drives')
   ipcMain.handle('get-drives', async () => {
     try {
@@ -199,7 +271,7 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
         return await getLinuxDrives()
       }
       return []
-    } catch (e) {
+    } catch (_error) {
       return []
     }
   })

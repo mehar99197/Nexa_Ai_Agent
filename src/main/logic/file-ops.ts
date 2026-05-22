@@ -1,9 +1,8 @@
 import { IpcMain } from 'electron'
 import fs from 'fs/promises'
 
-export default function registerFileOps(ipcMain: IpcMain) {
+export default function registerFileOps(ipcMain: IpcMain): void {
   ipcMain.handle('file-ops', async (_event, { operation, sourcePath, destPath }) => {
-
     try {
       switch (operation) {
         case 'copy':

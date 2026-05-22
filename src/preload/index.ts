@@ -9,11 +9,12 @@ if (process.contextIsolated) {
       ...electronAPI,
       ipcRenderer: {
         ...electronAPI.ipcRenderer,
-        invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args)
+        invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args)
       }
     })
     contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
+  } catch {
+    // Keep preload startup non-fatal if the bridge was already exposed.
   }
 } else {
   // @ts-ignore (define in dts)
@@ -27,4 +28,3 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.api = api
 }
-

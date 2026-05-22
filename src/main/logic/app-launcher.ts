@@ -157,12 +157,15 @@ const LINUX_PROCESS_NAMES: Record<string, string> = {
 
 const PROCESS_NAMES = isWin ? WIN_PROCESS_NAMES : LINUX_PROCESS_NAMES
 
-export default function registerAppLauncher(ipcMain: IpcMain) {
+type AppLauncherResult = { success: boolean; message?: string; error?: string }
+type AppLauncherResolve = (result: AppLauncherResult) => void
+
+export default function registerAppLauncher(ipcMain: IpcMain): void {
   ipcMain.removeHandler('open-app')
   ipcMain.handle('open-app', async (_event, appName: string) => {
     return new Promise((resolve) => {
       const lowerName = appName.toLowerCase().trim()
-      let command = APP_ALIASES[lowerName]
+      const command = APP_ALIASES[lowerName]
 
       if (command) {
         executeCommand(command, appName, resolve)
@@ -171,7 +174,9 @@ export default function registerAppLauncher(ipcMain: IpcMain) {
           launchViaPowerShell(appName, resolve)
         } else {
           // On Linux/macOS, try xdg-open / open with the app name as-is
-          const launchCmd = isMac ? `open -a "${appName}"` : `xdg-open "${appName}" 2>/dev/null || ${appName} &`
+          const launchCmd = isMac
+            ? `open -a "${appName}"`
+            : `xdg-open "${appName}" 2>/dev/null || ${appName} &`
           exec(launchCmd, (error) => {
             if (error) {
               // Last resort: try running the name directly as a command
@@ -232,8 +237,9 @@ export default function registerAppLauncher(ipcMain: IpcMain) {
   })
 }
 
-function executeCommand(command: string, appName: string, resolve: any) {
-  const opts = isLinux || isMac ? { env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' } } : {}
+function executeCommand(command: string, appName: string, resolve: AppLauncherResolve): void {
+  const opts =
+    isLinux || isMac ? { env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' } } : {}
   exec(command, opts, (error) => {
     if (error) {
       if (isWin) {
@@ -247,7 +253,7 @@ function executeCommand(command: string, appName: string, resolve: any) {
   })
 }
 
-function launchViaPowerShell(appName: string, resolve: any) {
+function launchViaPowerShell(appName: string, resolve: AppLauncherResolve): void {
   const psCommand = `powershell -Command "Get-StartApps | Where-Object { $_.Name -like '*${appName}*' } | Select-Object -First 1 -ExpandProperty AppID"`
 
   exec(psCommand, (error, stdout) => {
