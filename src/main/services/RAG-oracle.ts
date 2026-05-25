@@ -47,6 +47,22 @@ let vectorDB: VectorRecord[] = []
 let processedFiles = new Set<string>()
 let isCancelled = false
 
+// Hard caps so the in-memory RAG index can't grow without bound when the user
+// keeps ingesting projects across a long session. ~50k chunks is comfortable
+// for laptop RAM; over that we drop the oldest entries.
+const MAX_VECTOR_RECORDS = 50_000
+const MAX_PROCESSED_FILES = 20_000
+
+const trimVectorDB = (): void => {
+  if (vectorDB.length > MAX_VECTOR_RECORDS) {
+    vectorDB = vectorDB.slice(vectorDB.length - MAX_VECTOR_RECORDS)
+  }
+  if (processedFiles.size > MAX_PROCESSED_FILES) {
+    const arr = Array.from(processedFiles)
+    processedFiles = new Set(arr.slice(arr.length - MAX_PROCESSED_FILES))
+  }
+}
+
 const cosineSimilarity = (vecA: number[], vecB: number[]): number => {
   let dot = 0,
     normA = 0,
@@ -181,6 +197,7 @@ export default function registerOracle({ ipcMain }: { ipcMain: IpcMain }): void 
           })
 
           processedFiles.add(fullPath)
+          trimVectorDB()
           await saveState({
             dirPath: targetPath,
             processedFiles: Array.from(processedFiles),

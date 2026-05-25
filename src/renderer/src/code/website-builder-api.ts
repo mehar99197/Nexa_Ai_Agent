@@ -1,3 +1,5 @@
+import { getSecureKey } from '../config/secure-keys'
+
 interface BuildAnimatedWebsiteResponse {
   success: boolean
   filePath?: string
@@ -6,7 +8,7 @@ interface BuildAnimatedWebsiteResponse {
 
 export const buildAnimatedWebsite = async (prompt: string): Promise<string> => {
   try {
-    const geminiKey = localStorage.getItem('nexa_custom_api_key') || ''
+    const geminiKey = await getSecureKey('geminiKey')
 
     if (!geminiKey.trim()) {
       return `❌ System Error: Missing Gemini API Key. Please update it in the Command Center Vault.`

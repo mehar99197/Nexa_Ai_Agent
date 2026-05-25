@@ -45,7 +45,10 @@ interface MacroStep {
   args: MacroArgs
 }
 
-type MacroSequenceResult =
+// Exported so consumers can narrow against the same union the function returns.
+// (Without export, TS may resolve cross-file callers as the inferred return
+// type and lose the discriminant in some configurations.)
+export type MacroSequenceResult =
   | { success: true; name: string; steps: MacroStep[] }
   | { success: false; error: string }
 

@@ -59,21 +59,36 @@ export default function registerAdbHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.removeHandler('adb-connect')
-  ipcMain.handle('adb-connect', async (_, { ip, port }) => {
+  ipcMain.handle('adb-connect', async (_, payload) => {
     try {
-      const { stdout } = await execAsync(`adb connect ${ip}:${port}`)
+      if (!payload || typeof payload !== 'object') {
+        return { success: false, error: 'Invalid payload.' }
+      }
+      const { ip, port } = payload as { ip?: unknown; port?: unknown }
+      // Strict shape check: ip = IPv4 dotted quad, port = 1-65535 integer.
+      // This blocks shell-metachar injection like ip = "1.2.3.4; rm -rf /".
+      if (typeof ip !== 'string' || !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+        return { success: false, error: 'Invalid IP address.' }
+      }
+      const portNum = typeof port === 'number' ? port : Number(port)
+      if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+        return { success: false, error: 'Invalid port.' }
+      }
+      const safeAddr = `${ip}:${portNum}`
+      const { stdout } = await execAsync(`adb connect ${safeAddr}`)
 
       if (
         stdout.toLowerCase().includes('connected to') ||
         stdout.toLowerCase().includes('already connected')
       ) {
-        activeDevice = { ip, port }
+        const portStr = String(portNum)
+        activeDevice = { ip, port: portStr }
 
         try {
           const { stdout: modelOut } = await execAsync(
-            `adb -s ${ip}:${port} shell getprop ro.product.model`
+            `adb -s ${safeAddr} shell getprop ro.product.model`
           )
-          await saveDeviceToHistory(ip, port, modelOut.trim().toUpperCase() || 'UNKNOWN DEVICE')
+          await saveDeviceToHistory(ip, portStr, modelOut.trim().toUpperCase() || 'UNKNOWN DEVICE')
         } catch (_error) {
           void _error
         }

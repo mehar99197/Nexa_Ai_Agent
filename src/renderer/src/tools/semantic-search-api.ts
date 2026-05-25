@@ -20,7 +20,8 @@ export const runSmartSearch = async (query: string) => {
       new CustomEvent('semantic-start', { detail: { mode: 'Search', target: query } })
     )
 
-    const groqKey = localStorage.getItem('nexa_groq_api_key') || ''
+    const { getSecureKey } = await import('../config/secure-keys')
+    const groqKey = await getSecureKey('groqKey')
 
     if (!groqKey.trim()) {
       throw new Error(

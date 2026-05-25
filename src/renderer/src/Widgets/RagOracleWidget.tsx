@@ -55,11 +55,13 @@ export default function OracleWidget() {
   }, [logStream])
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: ReturnType<typeof setInterval> | undefined
     if ((status === 'scanning' || status === 'ingesting') && startTime) {
       interval = setInterval(() => setElapsedMs(Date.now() - startTime), 1000)
     }
-    return () => clearInterval(interval)
+    return () => {
+      if (interval) clearInterval(interval)
+    }
   }, [status, startTime])
 
   useEffect(() => {

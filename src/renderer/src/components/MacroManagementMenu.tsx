@@ -7,6 +7,7 @@ import {
   RiFileCopyLine,
   RiEditBoxLine
 } from 'react-icons/ri'
+import { hudAlert } from './hudToastStore'
 
 interface MacroMenuProps {
   loadMacroToCanvas: (macro: Workflow) => void
@@ -87,7 +88,10 @@ export default function MacroManagementMenu({ loadMacroToCanvas }: MacroMenuProp
     const newMacro = { ...macro, name: `${macro.name} Copy` }
     loadMacroToCanvas(newMacro)
     setIsMainOpen(false)
-    alert(`Duplicated to canvas as '${newMacro.name}'. Change the name and save to finalize.`)
+    hudAlert(
+      `Duplicated to canvas as '${newMacro.name}'.\nChange the name and save to finalize.`,
+      'info'
+    )
   }
 
   return (

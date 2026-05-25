@@ -4,7 +4,7 @@ import path from 'path'
 import process from 'process'
 import { authenticate } from '@google-cloud/local-auth'
 import { google, type gmail_v1 } from 'googleapis'
-import type { OAuth2Client } from 'google-auth-library'
+import type { OAuth2Client } from 'googleapis-common'
 
 const SCOPES = ['https://mail.google.com/']
 const TOKEN_PATH = path.join(app.getPath('userData'), 'gmail_token.json')
@@ -30,7 +30,7 @@ export default function registerGmailHandlers(ipcMain: IpcMain): void {
     try {
       const content = await fs.readFile(TOKEN_PATH, 'utf-8')
       const credentials = JSON.parse(content)
-      return google.auth.fromJSON(credentials) as OAuth2Client
+      return google.auth.fromJSON(credentials) as unknown as OAuth2Client
     } catch (_error) {
       return null
     }

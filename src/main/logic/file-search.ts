@@ -269,10 +269,15 @@ export default function registerFileSearch(ipcMain: IpcMain): void {
           const parsed = JSON.parse(
             chatCompletion.choices[0]?.message?.content || '{"keywords":[]}'
           )
-          searchParams.root_target = parsed.root_target || ''
-          if (Array.isArray(parsed.keywords)) searchParams.keywords = parsed.keywords
-          else if (typeof parsed.keywords === 'string')
-            searchParams.keywords = parsed.keywords.split(/[\s,]+/)
+          if (parsed && typeof parsed === 'object') {
+            searchParams.root_target =
+              typeof parsed.root_target === 'string' ? parsed.root_target : ''
+            if (Array.isArray(parsed.keywords)) {
+              searchParams.keywords = parsed.keywords.filter((k: unknown) => typeof k === 'string')
+            } else if (typeof parsed.keywords === 'string') {
+              searchParams.keywords = parsed.keywords.split(/[\s,]+/)
+            }
+          }
         } catch {
           searchParams.keywords = []
         }

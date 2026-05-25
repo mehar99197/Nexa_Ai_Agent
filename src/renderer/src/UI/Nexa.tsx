@@ -19,7 +19,7 @@ import ViewSkeleton from '@renderer/components/ViewSkelrton'
 
 import DashboardView from '../views/Dashboard'
 import PhoneView from '../views/Phone'
-import { VisionMode } from '@renderer/IndexRoot'
+import { useSystemStore } from '@renderer/store/system-store'
 
 const AppsView = lazy(() => import('../views/APP'))
 const WorkFlowEditorView = lazy(() => import('../views/WorkFlowEditor'))
@@ -27,21 +27,15 @@ const NotesView = lazy(() => import('../views/Notes'))
 const SettingsView = lazy(() => import('../views/Settings'))
 const GalleryView = lazy(() => import('../views/Gallery'))
 
-interface NexaProps {
-  isSystemActive: boolean
-  toggleSystem: () => void
-  isMicMuted: boolean
-  toggleMic: () => void
-  isVideoOn: boolean
-  visionMode: VisionMode
-  startVision: (mode: 'camera' | 'screen') => void
-  stopVision: () => void
-  activeStream: MediaStream | null
-}
-
 const glassPanel = 'bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-2xl shadow-xl'
 
-const Nexa = (props: NexaProps) => {
+const Nexa = (): React.JSX.Element => {
+  // Read state slices needed locally. Toggles/actions are pulled from the
+  // store too so child views can wire them up directly via the hook.
+  const isSystemActive = useSystemStore((s) => s.isSystemActive)
+  const isVideoOn = useSystemStore((s) => s.isVideoOn)
+  const startVision = useSystemStore((s) => s.startVision)
+  const stopVision = useSystemStore((s) => s.stopVision)
   const [activeTab, setActiveTab] = useState('DASHBOARD')
   const [stats, setStats] = useState<any>(null)
   const [time, setTime] = useState<Date>(new Date())
@@ -74,9 +68,9 @@ const Nexa = (props: NexaProps) => {
     return () => clearInterval(interval)
   }, [])
 
-  const handleVisionClick = () => {
-    if (props.isVideoOn) {
-      props.stopVision()
+  const handleVisionClick = (): void => {
+    if (isVideoOn) {
+      stopVision()
     } else {
       setShowSourceModal(true)
     }
@@ -123,7 +117,7 @@ const Nexa = (props: NexaProps) => {
           <div className="flex items-center gap-2 text-emerald-500">
             <RiWifiLine /> <span>LINKED</span>
           </div>
-          <div className="hidden sm:flex items-center gap-2">
+          <div className={`hidden sm:flex items-center gap-2 ${battery.percent <= 25 ? 'text-red-500' : ''}`}>
             <RiBatteryChargeLine /> <span>{battery.percent}%</span>
           </div>
           <div className="bg-zinc-800 px-2 py-1 rounded text-zinc-300">
@@ -135,7 +129,6 @@ const Nexa = (props: NexaProps) => {
       <div className="flex-1 overflow-hidden relative bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-zinc-900/50 via-black to-black">
         <div className={`absolute inset-0 ${activeTab === 'DASHBOARD' ? 'block' : 'hidden'}`}>
           <DashboardView
-            props={props}
             stats={stats}
             chatHistory={chatHistory}
             onVisionClick={handleVisionClick}
@@ -150,7 +143,7 @@ const Nexa = (props: NexaProps) => {
           {activeTab === 'Macros' && <WorkFlowEditorView />}
           {activeTab === 'Apps' && <AppsView />}
           {activeTab === 'NOTES' && <NotesView glassPanel={glassPanel} />}
-          {activeTab === 'SETTINGS' && <SettingsView isSystemActive={props.isSystemActive} />}
+          {activeTab === 'SETTINGS' && <SettingsView isSystemActive={isSystemActive} />}
           {activeTab === 'GALLERY' && <GalleryView />}
         </Suspense>
       </div>
@@ -173,7 +166,7 @@ const Nexa = (props: NexaProps) => {
             <div className="p-4 grid grid-cols-2 gap-4">
               <button
                 onClick={() => {
-                  props.startVision('camera')
+                  startVision('camera')
                   setShowSourceModal(false)
                 }}
                 className="cursor-pointer group flex flex-col items-center justify-center gap-3 p-6 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"
@@ -188,7 +181,7 @@ const Nexa = (props: NexaProps) => {
 
               <button
                 onClick={() => {
-                  props.startVision('screen')
+                  startVision('screen')
                   setShowSourceModal(false)
                 }}
                 className="cursor-pointer group flex flex-col items-center justify-center gap-3 p-6 rounded-xl bg-black/40 border border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all"

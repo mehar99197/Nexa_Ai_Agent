@@ -168,6 +168,9 @@ export default function registerPhantomKeyboard(): void {
         webPreferences: { nodeIntegration: true, contextIsolation: false }
       })
 
+      phantomWindow.webContents.on('will-navigate', (e) => e.preventDefault())
+      phantomWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
       phantomWindow.setAlwaysOnTop(true, 'screen-saver')
       phantomWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
       await phantomWindow.loadFile(filePath)
@@ -233,11 +236,21 @@ export default function registerPhantomKeyboard(): void {
         return
       }
 
+      const phantomAbort = new AbortController()
+      // Streaming generation: allow up to 60s of total wall-clock before
+      // forcing the connection closed. Cleared in the outer finally below so
+      // it stays armed during the streaming read loop, not just the headers.
+      const phantomTimeout = setTimeout(() => phantomAbort.abort(), 60_000)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse&key=${apiKey}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?alt=sse',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // Header auth — keeps the key out of URLs and logs.
+            'x-goog-api-key': apiKey
+          },
+          signal: phantomAbort.signal,
           body: JSON.stringify({
             contents: [
               {
@@ -252,42 +265,49 @@ export default function registerPhantomKeyboard(): void {
         }
       )
 
-      if (!response.body) throw new Error('ReadableStream not supported.')
+      if (!response.body) {
+        clearTimeout(phantomTimeout)
+        throw new Error('ReadableStream not supported.')
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let fullGeneratedText = ''
       let buffer = ''
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
+          buffer += decoder.decode(value, { stream: true })
 
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6)
-            if (dataStr === '[DONE]') continue
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6)
+              if (dataStr === '[DONE]') continue
 
-            try {
-              const parsed = JSON.parse(dataStr)
-              const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text || ''
+              try {
+                const parsed = JSON.parse(dataStr)
+                const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-              if (textChunk) {
-                fullGeneratedText += textChunk
-                if (phantomWindow) {
-                  phantomWindow.webContents.send('phantom-stream-chunk', textChunk)
+                if (textChunk) {
+                  fullGeneratedText += textChunk
+                  if (phantomWindow) {
+                    phantomWindow.webContents.send('phantom-stream-chunk', textChunk)
+                  }
                 }
+              } catch (_error) {
+                void _error
               }
-            } catch (_error) {
-              void _error
             }
           }
         }
+      } finally {
+        clearTimeout(phantomTimeout)
       }
 
       await sleep(400)
@@ -306,9 +326,13 @@ export default function registerPhantomKeyboard(): void {
       await keyboard.pressKey(modifier, Key.V)
       await keyboard.releaseKey(Key.V, modifier)
 
+      // Restore the original clipboard quickly to shrink the window where the
+      // generated text is visible to any clipboard listener (sync apps, OS
+      // history). 80ms is empirically enough for the paste keystroke above to
+      // be consumed by the focused app.
       setTimeout(() => {
         clipboard.writeText(originalClipboard)
-      }, 500)
+      }, 80)
     } catch (error) {
       if (phantomWindow) {
         phantomWindow.webContents.send('phantom-error', `Execution Failed: ${String(error)}`)

@@ -39,7 +39,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const laserRef = useRef<HTMLDivElement>(null)
 
   const [time, setTime] = useState(new Date().toLocaleTimeString())
@@ -50,19 +50,29 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
   }, [])
 
   useEffect(() => {
-    if (window.electron?.ipcRenderer) {
-      window.electron.ipcRenderer
-        .invoke('check-vault-status')
-        .then((status: { hasPin: boolean; hasFace: boolean }) => {
+    const init = async (): Promise<void> => {
+      if (window.electron?.ipcRenderer) {
+        try {
+          const status = await window.electron.ipcRenderer.invoke('check-vault-status') as {
+            hasPin: boolean
+            hasFace: boolean
+          }
           setNeedsPinSetup(!status.hasPin)
           setNeedsFaceSetup(!status.hasFace)
           setIsLoading(false)
-          if (authMode === 'face') loadNeuralNets(!status.hasFace)
-        })
-        .catch(() => setIsLoading(false))
-    } else {
-      setIsLoading(false)
+          if (authMode === 'face') await loadNeuralNets(!status.hasFace)
+        } catch {
+          console.warn('[LockScreen] vault-status check failed, attempting model load anyway')
+          setIsLoading(false)
+          if (authMode === 'face') await loadNeuralNets(true)
+        }
+      } else {
+        console.warn('[LockScreen] electron IPC unavailable, attempting model load directly')
+        setIsLoading(false)
+        if (authMode === 'face') await loadNeuralNets(true)
+      }
     }
+    init()
     return () => stopCamera()
   }, [])
 
@@ -105,18 +115,20 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
     setIsScanning(false)
   }
 
-  const loadNeuralNets = async (isFaceSetup: boolean) => {
+  const loadNeuralNets = async (isFaceSetup: boolean): Promise<void> => {
     try {
       setAiStatus('LOADING NEURAL NETS...')
-      const MODEL_URL = './models'
+      const MODEL_URL = '/models'
 
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
       ])
+      console.log('[LockScreen] face-api models loaded successfully')
       startScanning(isFaceSetup)
     } catch (err) {
+      console.error('[LockScreen] failed to load face-api models:', err)
       setAiStatus('AI OFFLINE - USE PIN BACKUP')
     }
   }

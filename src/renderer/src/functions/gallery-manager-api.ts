@@ -30,7 +30,7 @@ export const analyzeDirectPhoto = async (filePath: string, socket: WebSocket | n
             })
           )
           resolve(
-            '✅ Photo successfully injected into your vision. You can now see it. Describe what you see to Harsh.'
+            '✅ Photo successfully injected into your vision. You can now see it. Describe what you see to Abdul Rehman.'
           )
         } else {
           resolve('❌ Failed: Connection not open.')

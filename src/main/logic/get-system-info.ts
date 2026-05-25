@@ -43,9 +43,9 @@ function getSystemCpuUsage(): string {
     const cpu = cpus[i]
     const prevCpu = cpuLastSnapshot[i]
     let currentTotal = 0
-    for (const type in cpu.times) currentTotal += cpu.times[type]
+    for (const type in cpu.times) currentTotal += cpu.times[type as keyof typeof cpu.times]
     let prevTotal = 0
-    for (const type in prevCpu.times) prevTotal += prevCpu.times[type]
+    for (const type in prevCpu.times) prevTotal += prevCpu.times[type as keyof typeof prevCpu.times]
     idle += cpu.times.idle - prevCpu.times.idle
     total += currentTotal - prevTotal
   }

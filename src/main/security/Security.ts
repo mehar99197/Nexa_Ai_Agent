@@ -49,9 +49,19 @@ export default function registerSecurityVault(): void {
   })
 
   ipcMain.handle('verify-vault-face', (_, descriptor: number[]) => {
+    // Defensive shape check — IPC payload is untrusted.
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) return false
+    for (const v of descriptor) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) return false
+    }
+
     const faces = store.get('nexa_vault_faces') as number[][] | undefined
     if (!faces || faces.length === 0) return false
 
+    // Tighter threshold for 128-dim face descriptors. 0.55 was too permissive
+    // (false positives — a different person could unlock); 0.45 matches the
+    // commonly cited face-api.js production threshold.
+    const MATCH_THRESHOLD = 0.45
     for (const savedFace of faces) {
       if (savedFace.length !== 128) continue
       let distance = 0
@@ -60,7 +70,7 @@ export default function registerSecurityVault(): void {
       }
       distance = Math.sqrt(distance)
 
-      if (distance < 0.55) return true
+      if (distance < MATCH_THRESHOLD) return true
     }
     return false
   })

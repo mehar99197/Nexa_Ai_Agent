@@ -1,5 +1,6 @@
 import { IpcMain } from 'electron'
 import { exec } from 'child_process'
+import { sanitizeAppName } from '../../shared/validation'
 
 const isWin = process.platform === 'win32'
 const isLinux = process.platform === 'linux'
@@ -164,31 +165,39 @@ export default function registerAppLauncher(ipcMain: IpcMain): void {
   ipcMain.removeHandler('open-app')
   ipcMain.handle('open-app', async (_event, appName: string) => {
     return new Promise((resolve) => {
-      const lowerName = appName.toLowerCase().trim()
+      const cleanName = sanitizeAppName(appName)
+      if (!cleanName) {
+        resolve({ success: false, error: 'Invalid app name.' })
+        return
+      }
+      const lowerName = cleanName.toLowerCase()
       const command = APP_ALIASES[lowerName]
 
       if (command) {
-        executeCommand(command, appName, resolve)
+        executeCommand(command, cleanName, resolve)
       } else {
         if (isWin) {
-          launchViaPowerShell(appName, resolve)
+          launchViaPowerShell(cleanName, resolve)
         } else {
-          // On Linux/macOS, try xdg-open / open with the app name as-is
+          // On Linux/macOS, try xdg-open / open with the sanitized app name
           const launchCmd = isMac
-            ? `open -a "${appName}"`
-            : `xdg-open "${appName}" 2>/dev/null || ${appName} &`
+            ? `open -a "${cleanName}"`
+            : `xdg-open "${cleanName}" 2>/dev/null || ${cleanName} &`
           exec(launchCmd, (error) => {
             if (error) {
               // Last resort: try running the name directly as a command
-              exec(`${appName} &`, (err2) => {
+              exec(`${cleanName} &`, (err2) => {
                 if (err2) {
-                  resolve({ success: false, error: `Could not find '${appName}' on this system.` })
+                  resolve({
+                    success: false,
+                    error: `Could not find '${cleanName}' on this system.`
+                  })
                 } else {
-                  resolve({ success: true, message: `Opened ${appName}` })
+                  resolve({ success: true, message: `Opened ${cleanName}` })
                 }
               })
             } else {
-              resolve({ success: true, message: `Opened ${appName}` })
+              resolve({ success: true, message: `Opened ${cleanName}` })
             }
           })
         }
@@ -199,21 +208,26 @@ export default function registerAppLauncher(ipcMain: IpcMain): void {
   ipcMain.removeHandler('close-app')
   ipcMain.handle('close-app', async (_event, appName: string) => {
     return new Promise((resolve) => {
-      const lowerName = appName.toLowerCase().trim()
+      const cleanName = sanitizeAppName(appName)
+      if (!cleanName) {
+        resolve({ success: false, error: 'Invalid app name.' })
+        return
+      }
+      const lowerName = cleanName.toLowerCase()
       let processName = PROCESS_NAMES[lowerName]
 
       if (!processName) {
         if (isWin) {
-          processName = appName.endsWith('.exe') ? appName : `${appName}.exe`
+          processName = cleanName.endsWith('.exe') ? cleanName : `${cleanName}.exe`
         } else {
-          processName = appName
+          processName = cleanName
         }
       }
 
       if (PROTECTED_PROCESSES.includes(processName.toLowerCase())) {
         resolve({
           success: false,
-          error: `Security Protocol: I cannot close '${appName}' (System Critical Process).`
+          error: `Security Protocol: I cannot close '${cleanName}' (System Critical Process).`
         })
         return
       }
@@ -228,9 +242,9 @@ export default function registerAppLauncher(ipcMain: IpcMain): void {
 
       exec(cmd, (error) => {
         if (error) {
-          resolve({ success: false, error: `Could not close ${appName}. Is it running?` })
+          resolve({ success: false, error: `Could not close ${cleanName}. Is it running?` })
         } else {
-          resolve({ success: true, message: `Terminated ${appName}` })
+          resolve({ success: true, message: `Terminated ${cleanName}` })
         }
       })
     })

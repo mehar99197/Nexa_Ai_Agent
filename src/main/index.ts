@@ -13,6 +13,7 @@ import {
 } from 'electron'
 import path, { join } from 'path'
 import fs from 'fs'
+import { setImmediate } from 'node:timers'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -49,6 +50,7 @@ import registerScreenPeeler from './handlers/ScreenPeeler-handler'
 import registerPhantomKeyboard from './handlers/PhantomControl-handler'
 import registerSecurityVault from './security/Security'
 import registerLockSystem from './security/lock-system'
+import registerPermissionManager from './services/permission-manager'
 import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
@@ -99,11 +101,6 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) mainWindow.show()
   })
-
-  // Auto-lock on blur disabled — vault bypass enabled
-  // mainWindow.on('blur', () => {
-  //   mainWindow?.webContents.send('lock-screen')
-  // })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -207,32 +204,53 @@ app.whenReady().then(() => {
     })
   }
 
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowedPermissions = [
-      'media',
-      'audioCapture',
-      'videoCapture',
-      'desktopVideoCapture',
-      'microphone',
-      'camera'
-    ]
-    if (allowedPermissions.includes(permission)) {
+  // Permissions that are silently auto-granted (Nexa needs constant hardware
+  // access for the voice/vision pipeline).
+  const autoGrantPermissions = new Set([
+    'media',
+    'audioCapture',
+    'videoCapture',
+    'microphone',
+    'camera'
+  ])
+  // Permissions that require an explicit user prompt every time (full-screen
+  // capture is too invasive to grant silently).
+  const promptPermissions = new Set(['desktopVideoCapture'])
+  // Persist user consent for the lifetime of the app session so they don't get
+  // prompted on every single screen-capture call.
+  const sessionGrantedDesktopCapture = { granted: false }
+
+  session.defaultSession.setPermissionRequestHandler(async (_webContents, permission, callback) => {
+    if (autoGrantPermissions.has(permission)) {
       callback(true)
-    } else {
-      callback(false)
+      return
     }
+    if (promptPermissions.has(permission)) {
+      if (sessionGrantedDesktopCapture.granted) {
+        callback(true)
+        return
+      }
+      const { response } = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['Allow for this session', 'Deny'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'Screen Capture Permission',
+        message: 'Nexa is requesting permission to capture your screen.',
+        detail: 'This lets Nexa see what you see for vision-mode and OCR features.'
+      })
+      const granted = response === 0
+      if (granted) sessionGrantedDesktopCapture.granted = true
+      callback(granted)
+      return
+    }
+    callback(false)
   })
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    const allowedPermissions = [
-      'media',
-      'audioCapture',
-      'videoCapture',
-      'desktopVideoCapture',
-      'microphone',
-      'camera'
-    ]
-    return allowedPermissions.includes(permission)
+    if (autoGrantPermissions.has(permission)) return true
+    if (promptPermissions.has(permission)) return sessionGrantedDesktopCapture.granted
+    return false
   })
 
   if (process.platform === 'darwin') {
@@ -244,45 +262,74 @@ app.whenReady().then(() => {
     }
   }
 
-  ipcMain.handle('secure-save-keys', async (_, { groqKey, geminiKey }) => {
+  ipcMain.handle('secure-save-keys', async (_, payload) => {
     try {
-      let groqEncrypted, geminiEncrypted
+      if (!payload || typeof payload !== 'object') {
+        return { success: false, error: 'Invalid payload.' }
+      }
+      const { groqKey, geminiKey, hfKey, tavilyKey } = payload as Record<string, unknown>
 
-      if (safeStorage.isEncryptionAvailable()) {
-        groqEncrypted = safeStorage.encryptString(groqKey).toString('base64')
-        geminiEncrypted = safeStorage.encryptString(geminiKey).toString('base64')
-      } else {
-        groqEncrypted = Buffer.from(groqKey).toString('base64')
-        geminiEncrypted = Buffer.from(geminiKey).toString('base64')
+      // Refuse to persist secrets if the OS cannot encrypt them. Plain base64
+      // is not encryption and any other process on disk can read the file.
+      if (!safeStorage.isEncryptionAvailable()) {
+        return {
+          success: false,
+          error: 'OS-level encryption is unavailable. Refusing to store secrets without encryption.'
+        }
       }
 
-      const secureData = {
-        groq: groqEncrypted,
-        gemini: geminiEncrypted
+      // Read any existing record so we can update a single key without
+      // wiping the others.
+      let existing: Record<string, string> = {}
+      try {
+        if (fs.existsSync(secureConfigPath)) {
+          existing = JSON.parse(fs.readFileSync(secureConfigPath, 'utf8'))
+        }
+      } catch {
+        existing = {}
       }
 
-      fs.writeFileSync(secureConfigPath, JSON.stringify(secureData))
+      const encrypt = (v: unknown): string | undefined =>
+        typeof v === 'string' && v.length > 0
+          ? safeStorage.encryptString(v).toString('base64')
+          : undefined
+
+      const next: Record<string, string> = { ...existing }
+      const groq = encrypt(groqKey)
+      const gemini = encrypt(geminiKey)
+      const hf = encrypt(hfKey)
+      const tavily = encrypt(tavilyKey)
+      if (groq) next.groq = groq
+      if (gemini) next.gemini = gemini
+      if (hf) next.hf = hf
+      if (tavily) next.tavily = tavily
+
+      await fs.promises.writeFile(secureConfigPath, JSON.stringify(next), { mode: 0o600 })
       return { success: true }
     } catch (error: unknown) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) }
+      return { success: false, error: error instanceof Error ? error.message : 'unknown error' }
     }
   })
 
   ipcMain.handle('secure-get-keys', async () => {
     if (!fs.existsSync(secureConfigPath)) return null
+    if (!safeStorage.isEncryptionAvailable()) return null
     try {
-      const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf8'))
-      let groqKey, geminiKey
-
-      if (safeStorage.isEncryptionAvailable()) {
-        groqKey = safeStorage.decryptString(Buffer.from(data.groq, 'base64'))
-        geminiKey = safeStorage.decryptString(Buffer.from(data.gemini, 'base64'))
-      } else {
-        groqKey = Buffer.from(data.groq, 'base64').toString('utf8')
-        geminiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
+      const data = JSON.parse(await fs.promises.readFile(secureConfigPath, 'utf8'))
+      const decrypt = (b64: unknown): string | undefined => {
+        if (typeof b64 !== 'string' || !b64) return undefined
+        try {
+          return safeStorage.decryptString(Buffer.from(b64, 'base64'))
+        } catch {
+          return undefined
+        }
       }
-
-      return { groqKey, geminiKey }
+      return {
+        groqKey: decrypt(data.groq),
+        geminiKey: decrypt(data.gemini),
+        hfKey: decrypt(data.hf),
+        tavilyKey: decrypt(data.tavily)
+      }
     } catch {
       return null
     }
@@ -292,16 +339,33 @@ app.whenReady().then(() => {
     return fs.existsSync(secureConfigPath)
   })
 
+  // Inject a strict CSP for the renderer instead of stripping the one upstream
+  // services send. We only relax it for the renderer's own document so that
+  // local API responses keep their own CSPs intact.
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const isRendererDoc =
+      details.resourceType === 'mainFrame' || details.resourceType === 'subFrame'
+    if (!isRendererDoc) {
+      callback({ responseHeaders: details.responseHeaders, statusLine: details.statusLine })
+      return
+    }
     const responseHeaders = { ...details.responseHeaders }
-    delete responseHeaders['content-security-policy']
-    delete responseHeaders['x-content-security-policy']
-    delete responseHeaders['access-control-allow-origin']
-
-    callback({
-      responseHeaders,
-      statusLine: details.statusLine
-    })
+    // CSP tuned for an Electron renderer with inline GSAP/Tailwind output and
+    // outbound calls to the AI provider WebSocket + REST endpoints. Header
+    // values are arrays in Electron's typing.
+    responseHeaders['Content-Security-Policy'] = [
+      [
+        "default-src 'self' 'unsafe-inline' data: blob:",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob: https:",
+        "media-src 'self' blob: data:",
+        "connect-src 'self' https: wss:",
+        "worker-src 'self' blob:",
+        "font-src 'self' data: https:"
+      ].join('; ')
+    ]
+    callback({ responseHeaders, statusLine: details.statusLine })
   })
 
   app.on('browser-window-created', (_, window) => {
@@ -317,6 +381,7 @@ app.whenReady().then(() => {
 
   registerLockSystem()
   registerSecurityVault()
+  registerPermissionManager(ipcMain)
   registerPhantomKeyboard()
   registerScreenPeeler()
   registerDropZoneControl(ipcMain)

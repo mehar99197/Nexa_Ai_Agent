@@ -29,7 +29,8 @@ export default function LiveCodingWidget() {
       setIsVisible(true)
       setIsGenerating(true)
 
-      const geminiKey = localStorage.getItem('nexa_custom_api_key') || ''
+      const { getSecureKey } = await import('../config/secure-keys')
+      const geminiKey = await getSecureKey('geminiKey')
 
       if (!geminiKey.trim()) {
         setCode(

@@ -9,9 +9,22 @@ export default function registerSystemControl(ipcMain: IpcMain): void {
     return clean
   }
 
-  ipcMain.handle('run-shell-command', async (_event, { command, cwd }) => {
+  ipcMain.handle('run-shell-command', async (_event, payload) => {
     return new Promise((resolve) => {
-      const safeCwd = cwd ? sanitizePath(cwd) : undefined
+      if (!payload || typeof payload !== 'object') {
+        resolve({ success: false, output: 'Invalid payload' })
+        return
+      }
+      const { command, cwd } = payload as { command?: unknown; cwd?: unknown }
+      if (typeof command !== 'string' || !command.trim()) {
+        resolve({ success: false, output: 'Command must be a non-empty string.' })
+        return
+      }
+      if (cwd !== undefined && (typeof cwd !== 'string' || cwd.includes('\0'))) {
+        resolve({ success: false, output: 'Invalid cwd.' })
+        return
+      }
+      const safeCwd = cwd ? sanitizePath(cwd as string) : undefined
 
       const win = BrowserWindow.getAllWindows()[0]
 

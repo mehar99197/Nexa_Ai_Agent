@@ -81,6 +81,13 @@ export default function registerDropZoneControl(ipcMain: IpcMain): void {
       skipTaskbar: true,
       webPreferences: { nodeIntegration: true, contextIsolation: false }
     })
+    // Lock down navigation to keep the window pinned to the static markup it
+    // was created for.
+    dropZoneWindow.webContents.on('will-navigate', (e) => e.preventDefault())
+    dropZoneWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    dropZoneWindow.on('closed', () => {
+      dropZoneWindow = null
+    })
     return true
   })
 

@@ -1,12 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
-import { useGSAP } from '@gsap/react'
 import { Globe, FileText, Cpu, CheckCircle2, Network } from 'lucide-react'
 
-gsap.registerPlugin(useGSAP)
-
-export default function ResearchWidget() {
+export default function ResearchWidget(): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [statusText, setStatusText] = useState('Initializing RAG Pipeline...')
@@ -14,23 +11,24 @@ export default function ResearchWidget() {
   const [summary, setSummary] = useState<string>('')
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLDivElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLDivElement>(null)
   const summaryRef = useRef<HTMLDivElement>(null)
 
-  const { contextSafe } = useGSAP({ scope: containerRef })
+  useEffect(() => {
+    const handleStart = (e: CustomEvent<{ query: string }>): void => {
+      setQuery(e.detail.query)
+      setIsSuccess(null)
+      setSummary('')
+      setIsOpen(true)
+      setStatusText('Booting Deep Search Node...')
+      if (progressRef.current) gsap.to(progressRef.current, { width: '5%', duration: 0.5 })
+    }
 
-  const handleStart = contextSafe((e: any) => {
-    setQuery(e.detail.query)
-    setIsSuccess(null)
-    setSummary('')
-    setIsOpen(true)
-    setStatusText('Booting Deep Search Node...')
-    if (progressRef.current) gsap.to(progressRef.current, { width: '5%', duration: 0.5 })
-  })
-
-  const handleProgress = contextSafe(
-    (_event: any, data: { status: string; file: string; totalFound: number }) => {
+    const handleProgress = (
+      _event: unknown,
+      data: { status: string; file: string; totalFound: number }
+    ): void => {
       if (textRef.current) {
         gsap.to(textRef.current, {
           y: -10,
@@ -47,57 +45,55 @@ export default function ResearchWidget() {
         gsap.to(progressRef.current, { width: percentage, duration: 1.2, ease: 'expo.out' })
       }
     }
-  )
 
-  const handleDone = contextSafe((e: any) => {
-    const success = e.detail.success
-    setIsSuccess(success)
+    const handleDone = (e: CustomEvent<{ success: boolean; summary?: string }>): void => {
+      const success = e.detail.success
+      setIsSuccess(success)
 
-    if (success && e.detail.summary) {
-      setSummary(e.detail.summary)
-      if (summaryRef.current)
-        gsap.fromTo(
-          summaryRef.current,
-          { opacity: 0, y: 20 },
-          { opacity: 1, y: 0, duration: 0.8, delay: 0.3 }
-        )
+      if (success && e.detail.summary) {
+        setSummary(e.detail.summary)
+        if (summaryRef.current)
+          gsap.fromTo(
+            summaryRef.current,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.8, delay: 0.3 }
+          )
+      }
+
+      if (textRef.current) {
+        gsap.to(textRef.current, {
+          opacity: 0,
+          y: -10,
+          duration: 0.2,
+          onComplete: () => {
+            setStatusText(success ? 'RAG Pipeline Complete & Synthesized.' : 'Pipeline Terminated.')
+            gsap.to(textRef.current, { opacity: 1, y: 0, duration: 0.3 })
+          }
+        })
+      }
+
+      if (progressRef.current) {
+        gsap.to(progressRef.current, {
+          width: '100%',
+          backgroundColor: success ? '#10b981' : '#ef4444',
+          duration: 0.6,
+          ease: 'power3.out'
+        })
+      }
+
+      setTimeout(() => setIsOpen(false), 6000)
     }
 
-    if (textRef.current) {
-      gsap.to(textRef.current, {
-        opacity: 0,
-        y: -10,
-        duration: 0.2,
-        onComplete: () => {
-          setStatusText(success ? 'RAG Pipeline Complete & Synthesized.' : 'Pipeline Terminated.')
-          gsap.to(textRef.current, { opacity: 1, y: 0, duration: 0.3 })
-        }
-      })
-    }
-
-    if (progressRef.current) {
-      gsap.to(progressRef.current, {
-        width: '100%',
-        backgroundColor: success ? '#10b981' : '#ef4444',
-        duration: 0.6,
-        ease: 'power3.out'
-      })
-    }
-
-    setTimeout(() => setIsOpen(false), 6000)
-  })
-
-  useEffect(() => {
-    window.addEventListener('deep-research-start', handleStart)
-    window.addEventListener('deep-research-done', handleDone)
+    window.addEventListener('deep-research-start', handleStart as EventListener)
+    window.addEventListener('deep-research-done', handleDone as EventListener)
     window.electron.ipcRenderer.on('oracle-progress', handleProgress)
 
     return () => {
-      window.removeEventListener('deep-research-start', handleStart)
-      window.removeEventListener('deep-research-done', handleDone)
+      window.removeEventListener('deep-research-start', handleStart as EventListener)
+      window.removeEventListener('deep-research-done', handleDone as EventListener)
       window.electron.ipcRenderer.removeAllListeners('oracle-progress')
     }
-  }, [handleStart, handleProgress, handleDone])
+  }, [])
 
   return (
     <AnimatePresence>

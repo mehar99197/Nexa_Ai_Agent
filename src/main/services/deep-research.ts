@@ -48,8 +48,22 @@ export default function registerDeepResearch({ ipcMain }: { ipcMain: IpcMain }):
 
       const jsonString =
         chatCompletion.choices[0]?.message?.content || '{"summary": "No data generated."}'
-      const parsedData = JSON.parse(jsonString)
-      const extractedSummary = parsedData.summary || 'No data generated.'
+      // The model is asked for {summary: string} JSON — but never trust it
+      // blindly. Parse defensively and fall back if the shape is wrong.
+      let extractedSummary = 'No data generated.'
+      try {
+        const parsedData = JSON.parse(jsonString)
+        if (
+          parsedData &&
+          typeof parsedData === 'object' &&
+          typeof parsedData.summary === 'string'
+        ) {
+          extractedSummary = parsedData.summary
+        }
+      } catch {
+        // Malformed JSON — treat the raw string as the summary if it's not too long.
+        if (jsonString && jsonString.length < 4000) extractedSummary = jsonString
+      }
 
       event.sender.send('oracle-progress', {
         status: 'embedded',

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as faceapi from 'face-api.js'
+import { loadSecureKeys, saveSecureKeys } from '../config/secure-keys'
+import { hudAlert } from '../components/hudToastStore'
 import { GiArtificialIntelligence } from 'react-icons/gi'
 import {
   RiKey2Line,
@@ -18,20 +20,29 @@ import {
   RiBrainLine,
   RiCloudLine,
   RiCpuLine,
-  RiTerminalWindowLine,
-  RiRefreshLine,
-  RiDownloadCloud2Line,
-  RiRocketLine
+  RiAdminLine,
+  RiCheckboxCircleLine,
+  RiCloseCircleLine,
+  RiShieldStarLine,
+  RiFlashlightLine,
+  RiGlobalLine,
+  RiFolderLine,
+  RiCameraSwitchLine,
+  RiMicLine,
+  RiCursorLine,
+  RiKeyboardBoxLine,
+  RiTerminalBoxLine,
+  RiMapPinLine
 } from 'react-icons/ri'
 
 interface SettingsProps {
   isSystemActive: boolean
 }
 
-type TabType = 'updates' | 'general' | 'keys' | 'security'
+type TabType = 'general' | 'keys' | 'security' | 'permissions'
 
 const SettingsView = ({ isSystemActive }: SettingsProps) => {
-  const [activeTab, setActiveTab] = useState<TabType>('updates')
+  const [activeTab, setActiveTab] = useState<TabType>('general')
 
   const [voice, setVoice] = useState<'MALE' | 'FEMALE'>(
     (localStorage.getItem('nexa_voice_profile') as 'MALE' | 'FEMALE') || 'MALE'
@@ -39,10 +50,12 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const [personality, setPersonality] = useState('')
   const [userName, setUserName] = useState(localStorage.getItem('nexa_user_name') || '')
 
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('nexa_custom_api_key') || '')
-  const [groqKey, setGroqKey] = useState(localStorage.getItem('nexa_groq_api_key') || '')
-  const [hfKey, setHfKey] = useState(localStorage.getItem('nexa_hf_api_key') || '')
-  const [tailvyKey, setTailvyKey] = useState(localStorage.getItem('nexa_tailvy_api_key') || '')
+  // Keys are stored encrypted in the OS keychain via main process. We load
+  // them asynchronously below; UI shows blank until the IPC roundtrip resolves.
+  const [geminiKey, setGeminiKey] = useState('')
+  const [groqKey, setGroqKey] = useState('')
+  const [hfKey, setHfKey] = useState('')
+  const [tailvyKey, setTailvyKey] = useState('')
 
   const [isSecurityUnlocked, setIsSecurityUnlocked] = useState(false)
   const [authPin, setAuthPin] = useState('')
@@ -55,59 +68,24 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const [enrollStatus, setEnrollStatus] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  const [appVersion, setAppVersion] = useState('1.1.5')
-  const [updateStatus, setUpdateStatus] = useState<
-    'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
-  >('idle')
-  const [updateVersion, setUpdateVersion] = useState('')
-  const [updateNotes, setUpdateNotes] = useState('No new updates detected.')
-  const [downloadProgress, setDownloadProgress] = useState(0)
-
   useEffect(() => {
     if (window.electron?.ipcRenderer) {
       window.electron.ipcRenderer.invoke('get-personality').then((res) => {
         if (res) setPersonality(res)
       })
-      window.electron.ipcRenderer
-        .invoke('check-vault-status')
-        .then((res) => {
-          setFaceCount(res?.faceCount || 0)
-          if (!res?.hasPin) setIsSecurityUnlocked(true)
-        })
+      window.electron.ipcRenderer.invoke('check-vault-status').then((res) => {
+        setFaceCount(res?.faceCount || 0)
+        if (!res?.hasPin) setIsSecurityUnlocked(true)
+      })
 
-      window.electron.ipcRenderer.invoke('get-app-version').then((v) => setAppVersion(v))
-
-      window.electron.ipcRenderer.on('updater-event', (_e, { status, data, error }) => {
-        if (status === 'checking') setUpdateStatus('checking')
-        if (status === 'available') {
-          setUpdateStatus('available')
-          setUpdateVersion(data.version)
-          setUpdateNotes(data.releaseNotes || 'Bug fixes and performance improvements.')
-        }
-        if (status === 'not-available') {
-          setUpdateStatus('idle')
-          setUpdateNotes('System is up to date.')
-        }
-        if (status === 'downloading') {
-          setUpdateStatus('downloading')
-          setDownloadProgress(Math.round(data.percent))
-        }
-        if (status === 'downloaded') setUpdateStatus('ready')
-        if (status === 'error') {
-          setUpdateStatus('error')
-          setUpdateNotes(`Error: ${error}`)
-        }
+      loadSecureKeys().then((keys) => {
+        if (keys.geminiKey) setGeminiKey(keys.geminiKey)
+        if (keys.groqKey) setGroqKey(keys.groqKey)
+        if (keys.hfKey) setHfKey(keys.hfKey)
+        if (keys.tavilyKey) setTailvyKey(keys.tavilyKey)
       })
     }
-    return () => {
-      if (window.electron?.ipcRenderer)
-        window.electron.ipcRenderer.removeAllListeners('updater-event')
-    }
   }, [])
-
-  const checkForUpdates = () => window.electron.ipcRenderer.invoke('check-for-updates')
-  const downloadUpdate = () => window.electron.ipcRenderer.invoke('download-update')
-  const installUpdate = () => window.electron.ipcRenderer.invoke('install-update')
 
   const handleVoiceChange = (v: 'MALE' | 'FEMALE') => {
     if (isSystemActive) return
@@ -127,29 +105,30 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
   const savePersonality = async () => {
     if (window.electron?.ipcRenderer) {
       await window.electron.ipcRenderer.invoke('set-personality', personality)
-      alert('Personality Matrix Saved Securely to OS.')
+      hudAlert('Personality matrix saved.', 'success')
     }
   }
 
   const saveUserName = () => {
     localStorage.setItem('nexa_user_name', userName)
-    alert('User Designation Saved.')
+    hudAlert('User designation saved.', 'success')
   }
 
   const saveApiKeys = async () => {
-    localStorage.setItem('nexa_custom_api_key', geminiKey)
-    localStorage.setItem('nexa_groq_api_key', groqKey)
-    localStorage.setItem('nexa_hf_api_key', hfKey)
-    localStorage.setItem('nexa_tailvy_api_key', tailvyKey)
-
-    if (window.electron?.ipcRenderer) {
-      try {
-        await window.electron.ipcRenderer.invoke('secure-save-keys', { groqKey, geminiKey })
-      } catch (e) {}
+    const ok = await saveSecureKeys({
+      geminiKey: geminiKey.trim(),
+      groqKey: groqKey.trim(),
+      hfKey: hfKey.trim(),
+      tavilyKey: tailvyKey.trim()
+    })
+    if (ok) {
+      hudAlert('Neural uplinks secured.\nRestart AI modules to apply the new keys.', 'success')
+    } else {
+      hudAlert(
+        'OS encryption unavailable.\nKeys not saved — refusing to store secrets in plaintext.',
+        'error'
+      )
     }
-    alert(
-      'All Neural Uplinks (API Keys) secured locally and in OS Vault. Restart AI modules to apply.'
-    )
   }
 
   const currentWordCount = personality
@@ -173,7 +152,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
     if (newPin.length !== 4 || !window.electron?.ipcRenderer) return
     await window.electron.ipcRenderer.invoke('setup-vault-pin', newPin)
     setNewPin('')
-    alert('Master PIN Updated Successfully.')
+    hudAlert('Master PIN updated.', 'success')
   }
 
   const startFaceEnrollment = async () => {
@@ -210,7 +189,7 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
             stream.getTracks().forEach((t) => t.stop())
             setIsScanningFace(false)
             setFaceCount((prev) => prev + 1)
-            alert('New Biometric Identity Saved.')
+            hudAlert('New biometric identity saved.', 'success')
           }
         }, 1000)
       }
@@ -252,12 +231,6 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
 
           <div className="flex bg-[#0a0a0c] p-1 rounded-xl border border-white/10 w-full md:w-fit shadow-lg overflow-x-auto scrollbar-none">
             <button
-              onClick={() => setActiveTab('updates')}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold tracking-widest rounded-lg transition-all duration-300 ${activeTab === 'updates' ? 'bg-white text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
-            >
-              <RiTerminalWindowLine size={16} /> SYSTEM
-            </button>
-            <button
               onClick={() => setActiveTab('general')}
               className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold tracking-widest rounded-lg transition-all duration-300 ${activeTab === 'general' ? 'bg-white text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
             >
@@ -275,105 +248,17 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
             >
               <RiShieldKeyholeLine size={16} /> SECURITY
             </button>
+            <button
+              onClick={() => setActiveTab('permissions')}
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold tracking-widest rounded-lg transition-all duration-300 ${activeTab === 'permissions' ? 'bg-white text-black shadow-md' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+            >
+              <RiAdminLine size={16} /> ACCESS
+            </button>
           </div>
         </div>
 
         <div className="relative min-h-125 pb-12 mt-2">
           <AnimatePresence mode="wait">
-            {activeTab === 'updates' && (
-              <motion.div
-                key="updates"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-6 absolute w-full"
-              >
-                <div className={`${cardClass} md:col-span-1 border-emerald-500/20`}>
-                  <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                    <span className={titleClass}>
-                      <RiRocketLine className="text-emerald-400" size={18} /> OS Firmware
-                    </span>
-                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded font-mono font-bold tracking-widest">
-                      v{appVersion}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-4 items-center justify-center flex-1 py-4 text-center">
-                    {updateStatus === 'idle' || updateStatus === 'error' ? (
-                      <>
-                        <RiTerminalWindowLine size={48} className="text-zinc-700" />
-                        <p className="text-xs text-zinc-400 font-mono">Current build is stable.</p>
-                        <button
-                          onClick={checkForUpdates}
-                          className="mt-2 w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all cursor-pointer"
-                        >
-                          <RiRefreshLine size={16} /> CHECK FOR UPDATES
-                        </button>
-                      </>
-                    ) : updateStatus === 'checking' ? (
-                      <>
-                        <RiRefreshLine size={48} className="text-emerald-500 animate-spin" />
-                        <p className="text-xs text-emerald-400 font-mono animate-pulse">
-                          PINGING NEURAL NETWORK...
-                        </p>
-                      </>
-                    ) : updateStatus === 'available' ? (
-                      <>
-                        <RiDownloadCloud2Line size={48} className="text-cyan-400" />
-                        <p className="text-xs text-cyan-400 font-mono">
-                          NEW BUILD FOUND: v{updateVersion}
-                        </p>
-                        <button
-                          onClick={downloadUpdate}
-                          className="mt-2 w-full py-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-400 hover:text-black font-bold tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all border border-cyan-500/50 cursor-pointer"
-                        >
-                          <RiDownloadCloud2Line size={16} /> INITIALIZE DOWNLOAD
-                        </button>
-                      </>
-                    ) : updateStatus === 'downloading' ? (
-                      <div className="w-full flex flex-col gap-3">
-                        <div className="flex justify-between text-[10px] font-mono text-zinc-400">
-                          <span>DOWNLOADING PATCH...</span>
-                          <span>{downloadProgress}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-black rounded-full overflow-hidden border border-white/10">
-                          <div
-                            className="h-full bg-cyan-500 shadow-[0_0_10px_#06b6d4] transition-all duration-300"
-                            style={{ width: `${downloadProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <RiRecordCircleLine size={48} className="text-emerald-400 animate-pulse" />
-                        <p className="text-xs text-emerald-400 font-mono">PATCH DOWNLOADED</p>
-                        <button
-                          onClick={installUpdate}
-                          className="mt-2 w-full py-3 rounded-lg bg-emerald-500 text-black font-bold tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer"
-                        >
-                          <RiRocketLine size={16} /> EXECUTE RESTART
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className={`${cardClass} md:col-span-1`}>
-                  <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                    <span className={titleClass}>
-                      <RiTerminalWindowLine className="text-zinc-400" size={18} /> Patch Notes
-                    </span>
-                  </div>
-                  <div className="flex-1 bg-[#050505] border border-white/5 rounded-xl p-4 overflow-y-auto max-h-60 scrollbar-small">
-                    <pre className="text-[11px] font-mono text-zinc-400 whitespace-pre-wrap leading-relaxed">
-                      {updateNotes}
-                    </pre>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
             {/* --- TAB 2: GENERAL --- */}
             {activeTab === 'general' && (
               <motion.div
@@ -570,6 +455,9 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
               </motion.div>
             )}
 
+            {/* --- TAB 5: PERMISSIONS --- */}
+            {activeTab === 'permissions' && <PermissionsPanel />}
+
             {/* --- TAB 4: SECURITY --- */}
             {activeTab === 'security' && (
               <motion.div
@@ -687,6 +575,159 @@ const SettingsView = ({ isSystemActive }: SettingsProps) => {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+const PERMISSION_ICONS: Record<string, React.ReactNode> = {
+  admin: <RiShieldStarLine size={18} />,
+  filesystem: <RiFolderLine size={18} />,
+  screen: <RiCameraSwitchLine size={18} />,
+  audio: <RiMicLine size={18} />,
+  camera: <RiCameraSwitchLine size={18} />,
+  keyboard: <RiKeyboardBoxLine size={18} />,
+  mouse: <RiCursorLine size={18} />,
+  exec: <RiTerminalBoxLine size={18} />,
+  network: <RiGlobalLine size={18} />,
+  location: <RiMapPinLine size={18} />
+}
+
+function PermissionsPanel(): React.JSX.Element {
+  const [perms, setPerms] = useState<Record<string, string> | null>(null)
+  const [info, setInfo] = useState<{
+    labels: Record<string, string>
+    descriptions: Record<string, string>
+  } | null>(null)
+  const [isElevated, setIsElevated] = useState(false)
+  const [elevating, setElevating] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const result = await window.electron.ipcRenderer.invoke('get-permissions')
+        const permInfo = await window.electron.ipcRenderer.invoke('get-permission-info')
+        if (cancelled) return
+        setPerms(result)
+        setIsElevated(result.isElevated)
+        setInfo(permInfo)
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const toggle = async (id: string) => {
+    if (!perms) return
+    const current = perms[id]
+    const next = current === 'granted' ? 'denied' : current === 'denied' ? 'prompt' : 'granted'
+    try {
+      const result = await window.electron.ipcRenderer.invoke('set-permission', id, next)
+      setPerms(result)
+      setIsElevated(result.isElevated)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const requestElevation = async () => {
+    setElevating(true)
+    try {
+      const result = await window.electron.ipcRenderer.invoke('request-elevation')
+      setIsElevated(result.elevated)
+      if (result.elevated) {
+        hudAlert('Administrator access granted.', 'success')
+      } else {
+        hudAlert('Elevation request denied or cancelled.', 'error')
+      }
+    } catch {
+      hudAlert('Elevation failed.', 'error')
+    }
+    setElevating(false)
+  }
+
+  const permsList = perms
+    ? (Object.keys(perms) as Array<keyof typeof perms>).filter((k) => k !== 'isElevated')
+    : []
+
+  const cardClass =
+    'bg-[#0f0f13] border border-white/10 p-6 md:p-8 rounded-2xl flex flex-col gap-5 hover:border-white/20 transition-all shadow-lg'
+
+  return (
+    <motion.div
+      key="permissions"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+      className="grid grid-cols-1 md:grid-cols-2 gap-6 absolute w-full"
+    >
+      {isElevated && (
+        <div className="md:col-span-2 bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3">
+          <RiShieldStarLine className="text-emerald-400 shrink-0" size={20} />
+          <span className="text-xs text-emerald-300 font-mono tracking-widest">
+            ADMINISTRATOR ACCESS ACTIVE — Full system control enabled
+          </span>
+        </div>
+      )}
+
+      <div className={`${cardClass} md:col-span-2`}>
+        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+          <span className="text-sm font-semibold text-white flex items-center gap-2">
+            <RiAdminLine className="text-zinc-400" size={18} /> Agent Permissions
+          </span>
+          <button
+            onClick={requestElevation}
+            disabled={elevating}
+            className="px-5 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold tracking-widest hover:bg-amber-500/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40"
+          >
+            <RiFlashlightLine size={14} />
+            {elevating ? 'REQUESTING...' : isElevated ? 'RE-ELEVATE' : 'REQUEST ADMIN'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {permsList.map((id) => {
+            const state = perms?.[id] as string
+            const label = info?.labels?.[id] || id
+            const desc = info?.descriptions?.[id] || ''
+            return (
+              <div
+                key={id}
+                className="flex items-center gap-3 bg-[#050505] border border-white/5 rounded-xl p-4 hover:border-white/20 transition-all cursor-pointer group"
+                onClick={() => toggle(id as string)}
+              >
+                <div className="text-zinc-500 group-hover:text-white transition-colors">
+                  {PERMISSION_ICONS[id] || <RiShieldKeyholeLine size={18} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white tracking-wider">{label}</span>
+                    {id === 'admin' && isElevated && (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono font-bold">
+                        ELEVATED
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-zinc-500 font-mono block truncate">{desc}</span>
+                </div>
+                <div className="shrink-0">
+                  {state === 'granted' ? (
+                    <RiCheckboxCircleLine className="text-emerald-400" size={20} />
+                  ) : state === 'prompt' ? (
+                    <RiLock2Line className="text-amber-400" size={18} />
+                  ) : (
+                    <RiCloseCircleLine className="text-red-400" size={20} />
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </motion.div>
   )
 }
 

@@ -2,8 +2,11 @@ export const runDeepResearch = async (query: string): Promise<string> => {
   try {
     window.dispatchEvent(new CustomEvent('deep-research-start', { detail: { query } }))
 
-    const tavilyKey = localStorage.getItem('nexa_tailvy_api_key') || ''
-    const groqKey = localStorage.getItem('nexa_groq_api_key') || ''
+    const { getSecureKey } = await import('../config/secure-keys')
+    const [tavilyKey, groqKey] = await Promise.all([
+      getSecureKey('tavilyKey'),
+      getSecureKey('groqKey')
+    ])
 
     const result = await window.electron.ipcRenderer.invoke('execute-deep-research', {
       query,
@@ -23,8 +26,8 @@ export const runDeepResearch = async (query: string): Promise<string> => {
     window.dispatchEvent(new CustomEvent('deep-research-done', { detail: { success: false } }))
     return `❌ Research failed: ${result.error}`
   } catch (error) {
-    alert(`System failure during deep research: ${String(error)}`)
+    const { hudAlert } = await import('../components/hudToastStore')
+    hudAlert(`Deep research failed\n${String(error)}`, 'error')
     return `❌ System failure: ${String(error)}`
   }
 }
-

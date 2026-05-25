@@ -9,29 +9,19 @@ import {
 } from 'react-icons/ri'
 import { GiPowerButton } from 'react-icons/gi'
 import { nexaService } from '@renderer/services/Nexa-voice-ai'
-import { VisionMode } from '@renderer/IndexRoot'
+import { useSystemStore } from '@renderer/store/system-store'
 
-interface OverlayProps {
-  isSystemActive: boolean
-  toggleSystem: () => void
-  isMicMuted: boolean
-  toggleMic: () => void
-  isVideoOn: boolean
-  visionMode: VisionMode
-  startVision: (mode: 'camera' | 'screen') => void
-  stopVision: () => void
-}
-
-const MiniOverlay = ({
-  isSystemActive,
-  toggleSystem,
-  isMicMuted,
-  toggleMic,
-  isVideoOn,
-  visionMode,
-  startVision,
-  stopVision
-}: OverlayProps): ReactElement => {
+const MiniOverlay = (): ReactElement => {
+  // Subscribe to just the slices this component cares about so zustand can
+  // skip renders when unrelated state (e.g. isOverlay) changes.
+  const isSystemActive = useSystemStore((s) => s.isSystemActive)
+  const isMicMuted = useSystemStore((s) => s.isMicMuted)
+  const isVideoOn = useSystemStore((s) => s.isVideoOn)
+  const visionMode = useSystemStore((s) => s.visionMode)
+  const toggleSystem = useSystemStore((s) => s.toggleSystem)
+  const toggleMic = useSystemStore((s) => s.toggleMic)
+  const startVision = useSystemStore((s) => s.startVision)
+  const stopVision = useSystemStore((s) => s.stopVision)
   const [isTalking, setIsTalking] = useState(false)
   const analyzerRef = useRef<AnalyserNode | null>(null)
   const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null)

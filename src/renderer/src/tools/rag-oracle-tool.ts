@@ -1,6 +1,8 @@
+import { getSecureKey } from '../config/secure-keys'
+
 export const ingestCodebase = async (dirPath: string): Promise<string> => {
   try {
-    const geminiKey = localStorage.getItem('nexa_custom_api_key') || ''
+    const geminiKey = await getSecureKey('geminiKey')
 
     if (!geminiKey.trim()) {
       throw new Error('Missing Gemini API Key. Please update it in the Command Center Vault.')
@@ -40,8 +42,10 @@ export const ingestCodebase = async (dirPath: string): Promise<string> => {
 
 export const consultOracle = async (query: string): Promise<string> => {
   try {
-    const geminiKey = localStorage.getItem('nexa_custom_api_key') || ''
-    const groqKey = localStorage.getItem('nexa_groq_api_key') || ''
+    const [geminiKey, groqKey] = await Promise.all([
+      getSecureKey('geminiKey'),
+      getSecureKey('groqKey')
+    ])
 
     if (!geminiKey.trim() || !groqKey.trim()) {
       throw new Error(

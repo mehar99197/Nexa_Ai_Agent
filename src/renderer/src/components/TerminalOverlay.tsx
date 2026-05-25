@@ -9,7 +9,7 @@ export default function TerminalOverlay(): ReactElement {
   const fitAddonRef = useRef<FitAddon | null>(null)
 
   const [isVisible, setIsVisible] = useState(false)
-  const hideTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (xtermRef.current) return

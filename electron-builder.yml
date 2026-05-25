@@ -57,5 +57,5 @@ appImage:
 npmRebuild: false
 publish:
   provider: github
-  owner: 201Harsh
+  owner: AbdulRehman
   repo: Nexa

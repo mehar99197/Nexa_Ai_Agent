@@ -68,7 +68,10 @@ const getSystemPath = (name: string): string => {
 }
 
 export default function registerDirLoader(ipcMain: IpcMain): void {
-  ipcMain.handle('read-directory', async (_event, dirPath: string) => {
+  ipcMain.handle('read-directory', async (_event, dirPath: unknown) => {
+    if (typeof dirPath !== 'string' || dirPath.includes('\0')) {
+      return 'Error: invalid directory path.'
+    }
     try {
       const rawInput = dirPath.trim()
       let targetPath = rawInput
@@ -153,7 +156,8 @@ export default function registerDirLoader(ipcMain: IpcMain): void {
         content: results
       })
     } catch (err) {
-      return `System Error: ${err}`
+      const code = (err as NodeJS.ErrnoException)?.code
+      return code ? `System Error: ${code}` : 'System Error: directory read failed.'
     }
   })
 }

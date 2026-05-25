@@ -8,6 +8,7 @@ import ReactFlow, {
   ReactFlowProvider
 } from 'reactflow'
 import { Tooltip } from 'react-tooltip'
+import { hudAlert } from '../components/hudToastStore'
 import 'reactflow/dist/style.css'
 import 'react-tooltip/dist/react-tooltip.css'
 import ToolNode from '../components/ToolNode'
@@ -28,7 +29,7 @@ import {
   scrollScreen,
   setVolume,
   takeScreenshot
-} from '@renderer/functions/keybaord-manager'
+} from '@renderer/functions/keyboard-manager'
 import { closeApp, openApp, performWebSearch } from '@renderer/functions/apps-manager-api'
 import {
   scheduleWhatsAppMessage,
@@ -320,7 +321,7 @@ function Editor() {
     const macroRes = await getMacroSequence(workflowName)
 
     if (!macroRes.success) {
-      alert(`❌ Execution Failed: ${macroRes.error}`)
+      hudAlert(`Macro execution failed\n${macroRes.error}`, 'error')
       return
     }
 
@@ -396,7 +397,7 @@ function Editor() {
         } else {
         }
       } catch (stepError) {
-        alert(`🔴 Macro Execution Halted! Failed at node: ${step.tool}`)
+        hudAlert(`Macro halted\nFailed at node: ${step.tool}`, 'error')
         break
       }
     }

@@ -1,52 +1,61 @@
-import { useState, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import MiniOverlay from './components/MiniOverlay'
 import { nexaService } from './services/Nexa-voice-ai'
-import { getScreenSourceId } from './hooks/CaptureDesktop'
 import Nexa from './UI/Nexa'
 import TerminalOverlay from './components/TerminalOverlay'
-import LeafletMapWidget from './Widgets/MapView'
-import ImageWidget from './Widgets/ImageWidget'
-import EmailWidget from './Widgets/EmailWidget'
-import WeatherWidget from './Widgets/WeatherWidget'
-import StockWidget from './Widgets/StockWidget'
-import LiveCodingWidget from './Widgets/LiveCodingWidget'
-import WormholeWidget from './Widgets/WormholeWidget'
-import OracleWidget from './Widgets/RagOrcaleWidget'
-import ResearchWidget from './Widgets/DeepResearch'
-import SemanticWidget from './Widgets/SematicSearch'
-import SmartDropZonesWidget from './Widgets/SmartZoneWidget'
 import TitleBar from './components/Titlebar'
+import { useSystemStore } from './store/system-store'
 
-export type VisionMode = 'camera' | 'screen' | 'none'
+// Re-export for legacy callers that imported the type from this module.
+export type { VisionMode } from './store/system-store'
 
-const IndexRoot = () => {
-  const [isOverlay, setIsOverlay] = useState(false)
+// Lazy-load all heavy widgets. They pull in three.js / leaflet / monaco /
+// recharts / face-api / transformers — keeping them out of the initial chunk
+// cuts first paint dramatically.
+const SmartDropZonesWidget = lazy(() => import('./Widgets/SmartZoneWidget'))
+const SemanticWidget = lazy(() => import('./Widgets/SemanticSearch'))
+const OracleWidget = lazy(() => import('./Widgets/RagOracleWidget'))
+const WormholeWidget = lazy(() => import('./Widgets/WormholeWidget'))
+const LeafletMapWidget = lazy(() => import('./Widgets/MapView'))
+const StockWidget = lazy(() => import('./Widgets/StockWidget'))
+const WeatherWidget = lazy(() => import('./Widgets/WeatherWidget'))
+const ImageWidget = lazy(() => import('./Widgets/ImageWidget'))
+const EmailWidget = lazy(() => import('./Widgets/EmailWidget'))
+const LiveCodingWidget = lazy(() => import('./Widgets/LiveCodingWidget'))
+const ResearchWidget = lazy(() => import('./Widgets/DeepResearch'))
 
-  const [isSystemActive, setIsSystemActive] = useState(false)
-  const [isMicMuted, setIsMicMuted] = useState(true)
+const IndexRoot = (): React.JSX.Element => {
+  // Subscribe with selectors so each piece of state only re-renders the parts
+  // of the tree that read it (zustand will bail out of renders otherwise).
+  const isOverlay = useSystemStore((s) => s.isOverlay)
+  const setOverlay = useSystemStore((s) => s.setOverlay)
+  const isSystemActive = useSystemStore((s) => s.isSystemActive)
+  const shutdown = useSystemStore((s) => s.shutdown)
+  const stopVision = useSystemStore((s) => s.stopVision)
 
-  const [isVideoOn, setIsVideoOn] = useState(false)
-  const [visionMode, setVisionMode] = useState<VisionMode>('none')
-
-  const processingVideoRef = useRef<HTMLVideoElement>(document.createElement('video'))
-  const activeStreamRef = useRef<MediaStream | null>(null)
-  const aiIntervalRef = useRef<NodeJS.Timeout | null>(null)
-
+  // Listen for overlay-mode toggles from the main process.
   useEffect(() => {
-    window.electron.ipcRenderer.on('overlay-mode', (_e, mode) => setIsOverlay(mode))
+    const onOverlay = (_e: unknown, mode: boolean): void => setOverlay(mode)
+    window.electron.ipcRenderer.on('overlay-mode', onOverlay)
     return () => {
-      window.electron.ipcRenderer.removeAllListeners('overlay-mode')
+      window.electron.ipcRenderer.removeListener?.('overlay-mode', onOverlay) ??
+        window.electron.ipcRenderer.removeAllListeners('overlay-mode')
     }
-  }, [])
+  }, [setOverlay])
 
+  // Watchdog: if nexaService drops the websocket while the UI thinks the
+  // system is active, tear everything down after a 3-second grace period.
   useEffect(() => {
+    if (!isSystemActive) return
     let disconnectGrace = 0
     const watchdog = setInterval(() => {
-      if (isSystemActive && !nexaService.isConnected) {
+      if (!nexaService.isConnected && !nexaService.isReconnecting) {
         disconnectGrace++
         if (disconnectGrace >= 3) {
-          setIsSystemActive(false)
-          setIsMicMuted(true)
+          useSystemStore.setState((s) => {
+            s.isSystemActive = false
+            s.isMicMuted = true
+          })
           stopVision()
           disconnectGrace = 0
         }
@@ -55,142 +64,19 @@ const IndexRoot = () => {
       }
     }, 1000)
     return () => clearInterval(watchdog)
-  }, [isSystemActive])
+  }, [isSystemActive, stopVision])
 
-  const toggleSystem = async () => {
-    if (!isSystemActive) {
-      try {
-        await nexaService.connect()
-        setIsSystemActive(true)
-        setIsMicMuted(false)
-        nexaService.setMute(false)
-      } catch (err: any) {
-        if (err.message === 'NO_API_KEY') {
-          alert(
-            '⚠️ CRITICAL ERROR: Gemini API Key is missing. Please enter it in the Command Center Vault (Settings Tab).'
-          )
-        } else if (err.message === 'NO_MICROPHONE') {
-          alert(
-            'Hardware Error: No microphone detected. Please connect an input device to initialize.'
-          )
-        } else {
-          alert(`Connection failed: ${err.message}`)
-        }
-        setIsSystemActive(false)
-      }
-    } else {
-      nexaService.disconnect()
-      setIsSystemActive(false)
-      setIsMicMuted(true)
-      nexaService.setMute(true)
-      stopVision()
+  // Tear down media + service if the root unmounts unexpectedly.
+  useEffect(() => {
+    return () => {
+      shutdown()
     }
-  }
-
-  const toggleMic = () => {
-    const s = !isMicMuted
-    setIsMicMuted(s)
-    nexaService.setMute(s)
-  }
-
-  const startVision = async (mode: 'camera' | 'screen') => {
-    if (!isSystemActive) return
-
-    try {
-      if (activeStreamRef.current) {
-        activeStreamRef.current.getTracks().forEach((t) => t.stop())
-      }
-
-      let stream: MediaStream
-
-      if (mode === 'camera') {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480 }
-        })
-      } else {
-        const sourceId = await getScreenSourceId()
-        if (!sourceId) return
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            // @ts-ignore
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: sourceId,
-              maxWidth: 1280,
-              maxHeight: 720
-            }
-          }
-        })
-      }
-
-      activeStreamRef.current = stream
-
-      processingVideoRef.current.srcObject = stream
-      await processingVideoRef.current.play()
-
-      setVisionMode(mode)
-      setIsVideoOn(true)
-
-      startAIProcessing()
-
-      stream.getVideoTracks()[0].onended = () => stopVision()
-    } catch (_e) {
-      stopVision()
-    }
-  }
-
-  const stopVision = () => {
-    setIsVideoOn(false)
-    setVisionMode('none')
-
-    if (activeStreamRef.current) {
-      activeStreamRef.current.getTracks().forEach((t) => t.stop())
-      activeStreamRef.current = null
-    }
-
-    if (processingVideoRef.current) {
-      processingVideoRef.current.srcObject = null
-    }
-
-    if (aiIntervalRef.current) {
-      clearInterval(aiIntervalRef.current)
-      aiIntervalRef.current = null
-    }
-  }
-
-  const startAIProcessing = () => {
-    if (aiIntervalRef.current) clearInterval(aiIntervalRef.current)
-
-    aiIntervalRef.current = setInterval(() => {
-      const vid = processingVideoRef.current
-      if (vid && vid.readyState === 4 && nexaService.socket?.readyState === WebSocket.OPEN) {
-        const canvas = document.createElement('canvas')
-        canvas.width = 800
-        canvas.height = 450
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(vid, 0, 0, canvas.width, canvas.height)
-          const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
-          nexaService.sendVideoFrame(base64)
-        }
-      }
-    }, 2000)
-  }
+  }, [shutdown])
 
   if (isOverlay) {
     return (
       <div className="w-screen h-screen overflow-hidden flex items-center justify-center bg-transparent">
-        <MiniOverlay
-          isSystemActive={isSystemActive}
-          toggleSystem={toggleSystem}
-          isMicMuted={isMicMuted}
-          toggleMic={toggleMic}
-          isVideoOn={isVideoOn}
-          visionMode={visionMode}
-          startVision={startVision}
-          stopVision={stopVision}
-        />
+        <MiniOverlay />
       </div>
     )
   }
@@ -199,30 +85,45 @@ const IndexRoot = () => {
     <div className="flex flex-col h-screen w-screen bg-black overflow-hidden relative border border-emerald-500/20 rounded-xl">
       <TitleBar />
       <div className="flex-1 relative">
-        <Nexa
-          isSystemActive={isSystemActive}
-          toggleSystem={toggleSystem}
-          isMicMuted={isMicMuted}
-          toggleMic={toggleMic}
-          isVideoOn={isVideoOn}
-          visionMode={visionMode}
-          startVision={startVision}
-          stopVision={stopVision}
-          activeStream={activeStreamRef.current}
-        />
+        <Nexa />
       </div>
-      <SmartDropZonesWidget />
-      <SemanticWidget />
-      <OracleWidget />
-      <WormholeWidget />
-      <LeafletMapWidget />
-      <StockWidget />
-      <WeatherWidget />
-      <ImageWidget />
-      <EmailWidget />
+      {/* TerminalOverlay is small and tied to AI tool output — keep it eager. */}
       <TerminalOverlay />
-      <LiveCodingWidget />
-      <ResearchWidget />
+      {/* Each lazy widget gets its own Suspense boundary so a slow chunk for
+          one widget doesn't block the others. */}
+      <Suspense fallback={null}>
+        <SmartDropZonesWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SemanticWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <OracleWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WormholeWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LeafletMapWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <StockWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WeatherWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ImageWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <EmailWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LiveCodingWidget />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ResearchWidget />
+      </Suspense>
     </div>
   )
 }
